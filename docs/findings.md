@@ -28,6 +28,20 @@ the screen is full. There are **three** separate limits in the chain.
 
 ### 1. Per-effect authored limit — the real one
 
+**Three unrelated types declare their own `_limitDetectionCount`.** They are siblings,
+not a hierarchy — `SS_Effect_AOE_Line` derives straight from `SS_Behaviour`, *not*
+from `SS_Effect_AOE` — so a mod must patch each one. Patching only the sphere AoE
+silently leaves every line/beam and aimed-projectile effect capped:
+
+| type                                | base                             | field offset |
+| ----------------------------------- | -------------------------------- | ------------ |
+| `SS_Effect_AOE`                     | `SS_Behaviour`                    | `0x38`       |
+| `SS_Effect_AOE_Line`                | `SS_Behaviour`                    | `0x38`       |
+| `SS_Behaviour_LaunchAimedProjectile` | `SS_Behaviour_LaunchProjectileCore` | `0x50`     |
+
+All three carry the same `-2 formula / -1 no limit` convention and all three
+override `OnPlayBehaviour`, which is the natural patch point.
+
 `SS_Effect_AOE : SS_Behaviour` (`[Serializable]`, embedded in skill card assets):
 
 ```csharp
@@ -171,5 +185,8 @@ of hitting many more enemies at once.
   but most method bodies come out as `throw null`** (they're native). Field
   layout and the call graph are trustworthy; control flow has to be read from an
   `isil` dump or a disassembler.
+- Don't assume a type hierarchy from a shared name prefix. `SS_Effect_AOE_Line`
+  looks like a specialisation of `SS_Effect_AOE` and is not one. Check the base
+  type in the dump before writing a patch that relies on inheritance.
 - Raising the cap costs frametime: every AoE walks more entities and resolves
   more damage. Expect this to matter most in late endless runs.

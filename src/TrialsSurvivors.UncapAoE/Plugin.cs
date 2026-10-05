@@ -6,7 +6,7 @@ using HarmonyLib;
 
 namespace TrialsSurvivors.UncapAoE;
 
-[BepInPlugin(Guid, "Trials Survivors: Uncap AoE", "0.1.0")]
+[BepInPlugin(Guid, "Trials Survivors: Uncap AoE", "0.2.0")]
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "net.aevv.trialssurvivors.uncapaoe";
@@ -27,10 +27,10 @@ public sealed class Plugin : BasePlugin
             "Master switch. Turn off to restore the game's own target caps without uninstalling.");
 
         Mode = Config.Bind("General", "Mode", LimitMode.NoLimit,
-            "How to rewrite each AoE's target cap.\n" +
-            "NoLimit   - every AoE hits everything in radius (the game's own -1 'no limit' path).\n" +
-            "Multiplier- multiply the authored cap, keeping relative skill balance.\n" +
-            "Minimum   - raise any cap below MinimumTargets up to it, leave higher caps alone.");
+            "How to rewrite each effect's target cap.\n" +
+            "NoLimit    - hit everything in range, via the game's own -1 'no limit' path.\n" +
+            "Multiplier - multiply the authored cap, keeping relative skill balance.\n" +
+            "Minimum    - raise any cap below MinimumTargets up to it, leave higher caps alone.");
 
         Multiplier = Config.Bind("General", "Multiplier", 4f,
             new ConfigDescription("Used when Mode is Multiplier.", new AcceptableValueRange<float>(1f, 64f)));
@@ -39,11 +39,10 @@ public sealed class Plugin : BasePlugin
             new ConfigDescription("Used when Mode is Minimum.", new AcceptableValueRange<int>(1, 256)));
 
         LogOriginalLimits = Config.Bind("Diagnostics", "LogOriginalLimits", false,
-            "Log each distinct authored cap the game asks for, once per value. Useful for working " +
-            "out the game's real numbers before deciding on a Mode.");
+            "Log each distinct authored cap the game asks for, once per effect type and value. " +
+            "Useful for working out the game's real numbers before deciding on a Mode.");
 
-        var harmony = new Harmony(Guid);
-        harmony.PatchAll(typeof(AoeLimitPatch));
+        new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
 
         Log.LogInfo($"loaded; mode={Mode.Value}");
     }
@@ -57,52 +56,61 @@ public enum LimitMode
 }
 
 /// <summary>
-/// Rewrites the per-effect AoE target cap.
+/// Rewrites the authored per-effect target cap, <c>_limitDetectionCount</c>.
 ///
-/// <para>Each <c>SS_Effect_AOE</c> carries an authored <c>_limitDetectionCount</c>, which the
-/// devs document as "-2 to use formula, -1 for no limit" and otherwise treat as a hard cap. It
-/// feeds both the spatial query's <c>maxResults</c> and the post-detection <c>SortTargets</c>
-/// trim, so rewriting the field covers the whole chain — patching the query alone would still
-/// leave the sort discarding the extra targets.</para>
+/// <para>The developers document the field as "-2 to use formula, -1 for no limit", otherwise a
+/// hard cap. It feeds both the spatial query's <c>maxResults</c> and the post-detection
+/// <c>SortTargets</c> trim, so rewriting the field covers the whole chain — patching the query
+/// alone would leave the sort discarding the extra targets.</para>
 ///
-/// <para>We hook <c>OnPlayBehaviour</c> rather than <c>OnInitBehaviour</c> because behaviours are
-/// cloned per entity and per skill instance (<c>CopyFromInstanceInternal</c>), so an init-time
-/// write can be copied over. A single int compare per cast is cheaper than tracking clones.</para>
+/// <para>Three unrelated types declare their own copy of this field: <c>SS_Effect_AOE</c>,
+/// <c>SS_Effect_AOE_Line</c> and <c>SS_Behaviour_LaunchAimedProjectile</c>. They are siblings
+/// rather than a hierarchy — AOE_Line derives straight from <c>SS_Behaviour</c>, not from
+/// <c>SS_Effect_AOE</c> — so each needs its own patch. Patching only the sphere AoE silently
+/// leaves every line/beam and aimed-projectile effect capped.</para>
 /// </summary>
-[HarmonyPatch]
-internal static class AoeLimitPatch
+internal static class LimitRewriter
 {
-    /// <summary>Authored caps we've already reported, so diagnostics stay one line per value.</summary>
-    private static readonly HashSet<int> LoggedLimits = new();
+    private const int NoLimit = -1;
 
     /// <summary>
-    /// Original cap per instance, so repeated casts rewrite from the authored value rather than
-    /// compounding the multiplier on an already-raised one.
+    /// SS_AOEDeferredQueries batches queries into 256-wide slabs, so a finite cap above that is
+    /// never honoured. Clamp so a configured number means what it says.
+    /// </summary>
+    private const int DeferredSlabSize = 256;
+
+    /// <summary>
+    /// Authored cap per instance, so repeated casts rewrite from the original value rather than
+    /// compounding a multiplier onto an already-raised one. Keyed on the IL2CPP object pointer.
     /// </summary>
     private static readonly Dictionary<nint, int> AuthoredLimits = new();
 
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(SS_Effect_AOE), nameof(SS_Effect_AOE.OnPlayBehaviour))]
-    private static void BeforeAoePlay(SS_Effect_AOE __instance)
+    /// <summary>Effect-type/value pairs already reported, to keep diagnostics to one line each.</summary>
+    private static readonly HashSet<(string, int)> LoggedLimits = new();
+
+    /// <summary>
+    /// Returns the value to write, or null to leave the effect alone. Called from a prefix, so the
+    /// write lands before detection runs — a postfix would only take effect on the next cast.
+    /// </summary>
+    internal static int? Rewrite(string effectType, nint instance, int current)
     {
         var plugin = Plugin.Instance;
-        if (!plugin.Enabled.Value) return;
+        if (!plugin.Enabled.Value) return null;
 
-        var key = __instance.Pointer;
-        if (!AuthoredLimits.TryGetValue(key, out var authored))
+        if (!AuthoredLimits.TryGetValue(instance, out var authored))
         {
-            authored = __instance._limitDetectionCount;
-            AuthoredLimits[key] = authored;
+            authored = current;
+            AuthoredLimits[instance] = authored;
 
-            if (plugin.LogOriginalLimits.Value && LoggedLimits.Add(authored))
+            if (plugin.LogOriginalLimits.Value && LoggedLimits.Add((effectType, authored)))
             {
-                plugin.Log.LogInfo($"authored AoE cap seen: {Describe(authored)}");
+                plugin.Log.LogInfo($"authored cap: {effectType} = {Describe(authored)}");
             }
         }
 
         // -1 is already unlimited; -2 defers to a designer formula we have no safe way to scale,
-        // so leave both alone rather than guess.
-        if (authored < 0) return;
+        // so leave both as the game authored them rather than guess.
+        if (authored < 0) return null;
 
         var rewritten = plugin.Mode.Value switch
         {
@@ -112,19 +120,8 @@ internal static class AoeLimitPatch
             _ => authored
         };
 
-        if (__instance._limitDetectionCount != rewritten)
-        {
-            __instance._limitDetectionCount = rewritten;
-        }
+        return rewritten == current ? null : rewritten;
     }
-
-    private const int NoLimit = -1;
-
-    /// <summary>
-    /// SS_AOEDeferredQueries batches queries into 256-wide slabs, so a finite cap above that is
-    /// never honoured. Clamp so the configured number means what it says.
-    /// </summary>
-    private const int DeferredSlabSize = 256;
 
     private static int ScaleWithinSlab(int authored, float multiplier)
     {
@@ -138,4 +135,43 @@ internal static class AoeLimitPatch
         -2 => "-2 (formula)",
         _ => limit.ToString()
     };
+}
+
+[HarmonyPatch(typeof(SS_Effect_AOE), nameof(SS_Effect_AOE.OnPlayBehaviour))]
+internal static class SphereAoePatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(SS_Effect_AOE __instance)
+    {
+        if (LimitRewriter.Rewrite(nameof(SS_Effect_AOE), __instance.Pointer, __instance._limitDetectionCount) is { } limit)
+        {
+            __instance._limitDetectionCount = limit;
+        }
+    }
+}
+
+[HarmonyPatch(typeof(SS_Effect_AOE_Line), nameof(SS_Effect_AOE_Line.OnPlayBehaviour))]
+internal static class LineAoePatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(SS_Effect_AOE_Line __instance)
+    {
+        if (LimitRewriter.Rewrite(nameof(SS_Effect_AOE_Line), __instance.Pointer, __instance._limitDetectionCount) is { } limit)
+        {
+            __instance._limitDetectionCount = limit;
+        }
+    }
+}
+
+[HarmonyPatch(typeof(SS_Behaviour_LaunchAimedProjectile), nameof(SS_Behaviour_LaunchAimedProjectile.OnPlayBehaviour))]
+internal static class AimedProjectilePatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(SS_Behaviour_LaunchAimedProjectile __instance)
+    {
+        if (LimitRewriter.Rewrite(nameof(SS_Behaviour_LaunchAimedProjectile), __instance.Pointer, __instance._limitDetectionCount) is { } limit)
+        {
+            __instance._limitDetectionCount = limit;
+        }
+    }
 }

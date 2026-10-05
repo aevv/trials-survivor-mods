@@ -13,6 +13,7 @@ runtime through Il2CppInterop.
 | path                            | what it is                                                   |
 | ------------------------------- | ------------------------------------------------------------ |
 | `tools/dump.ps1`                | Dumps the game's IL2CPP assemblies to readable .NET DLLs      |
+| `tools/decompile.ps1`           | Turns those into a greppable per-type C# source tree          |
 | `tools/install-bepinex.ps1`     | Installs/removes BepInEx 6 IL2CPP in the game folder          |
 | `docs/findings.md`              | Reverse-engineering notes — types, fields, caps, offsets      |
 | `src/TrialsSurvivors.UncapAoE/` | Mod: removes the per-skill cap on AoE targets hit             |
@@ -46,11 +47,37 @@ in this repo ever writes to a game file; everything is additive.
 
 ## Reading the game
 
+Dump once, then grep — you shouldn't need to re-dump to work out what to patch.
+
 ```powershell
-tools\dump.ps1                      # dll_il_recovery — decompilable assemblies
-tools\dump.ps1 -Format isil         # raw instruction stream, when you need bodies
 dotnet tool install -g ilspycmd
-ilspycmd -t SS_Effect_AOE dumps\dll_il_recovery\Assembly-CSharp.dll
+tools\dump.ps1              # IL2CPP -> .NET assemblies
+tools\decompile.ps1         # assemblies -> dumps\cs\, one .cs per type
+```
+
+That gives you two trees, which answer different questions:
+
+- **`dumps\cs\game\`** — the game as written. Real field names, offsets,
+  `[SerializeField]`/`[Tooltip]` attributes, inheritance. Read this to find the
+  thing you want to change. ~1550 types for `Assembly-CSharp`.
+- **`dumps\cs\interop\`** — the game as a mod sees it, decompiled from the
+  Il2CppInterop assemblies. Tells you whether a member is reachable from a plugin
+  and what the generated wrapper is called (interop makes `protected` fields into
+  public properties). **Check here before writing a patch**, because a member
+  being `protected` in the game is not what your plugin will see.
+
+```powershell
+rg -n "_limitDetectionCount" dumps/cs/game          # who has the field
+rg -ln "class SS_Effect" dumps/cs/game              # what the skill effects are
+rg -n "MAX_|const int" dumps/cs/game/Assembly-CSharp  # hunt hard-coded caps
+```
+
+Two other formats, for when the C# tree isn't enough:
+
+```powershell
+tools\dump.ps1 -Format diffable-cs   # flat, stable-ordered C# per assembly —
+                                     # diff two game versions to spot what changed
+tools\dump.ps1 -Format isil          # raw instruction stream, for method bodies
 ```
 
 Be aware of what the dump does and doesn't give you: **types, fields, offsets and
@@ -61,6 +88,9 @@ layout is enough for most mods.
 Naming conventions in `Assembly-CSharp`: `SO_*` ScriptableObject data assets,
 `SS_*` skill-system behaviours, `SSV2_*` skill-system v2 effect instances,
 `ARPG*` the core entity/combat layer.
+
+`dumps/` is gitignored — it's ~150MB of the game's own decompiled code, so it
+stays reproducible from these scripts rather than committed.
 
 ## Mods
 
@@ -85,13 +115,19 @@ launch):
 | `MinimumTargets`    | `50`      | floor for `Minimum` mode                                       |
 | `LogOriginalLimits` | `false`   | logs each distinct authored cap once — good for discovery      |
 
-How it works: every `SS_Effect_AOE` carries an authored `_limitDetectionCount`
-that the developers themselves document as *"-2 to use formula, -1 for no limit"*.
+How it works: each effect carries an authored `_limitDetectionCount` that the
+developers themselves document as *"-2 to use formula, -1 for no limit"*.
 `NoLimit` mode just writes `-1`, so the mod rides a code path the game already
 supports rather than forcing a value past a cap other code assumes is bounded.
 The field feeds both the spatial query's `maxResults` and the post-detection
 `SortTargets` trim, which is why the mod patches the field rather than the query —
 patching the query alone would leave the sort throwing the extra targets away.
+
+It patches `OnPlayBehaviour` on **three** types — `SS_Effect_AOE`,
+`SS_Effect_AOE_Line` and `SS_Behaviour_LaunchAimedProjectile`. Despite the names
+these are siblings, not a hierarchy, each with its own copy of the field, so
+patching only the sphere AoE would quietly leave line/beam and aimed-projectile
+effects capped.
 
 Caps the mod deliberately leaves alone: effects authored as `-2` (a designer
 formula we can't scale meaningfully) and anything already `-1`.
@@ -110,9 +146,15 @@ field offsets and the other caps in the codebase.
 
 ## Status
 
-The mod builds, loads cleanly under BepInEx be.788, and its Harmony patch applies
-without error — but **the gameplay effect has not been confirmed in a run yet.**
-To verify: set `LogOriginalLimits = true`, play until you have an AoE skill, and
-check `BepInEx\LogOutput.log` for `authored AoE cap seen: …` lines. Those tell you
-the game's real authored numbers, which is also the data needed to pick a sensible
-`Multiplier` or `MinimumTargets`.
+The mod builds, loads cleanly under BepInEx be.788, and all three Harmony patches
+apply without error — but **the gameplay effect has not been confirmed in a run
+yet.** To verify: set `LogOriginalLimits = true`, play until you have an AoE skill,
+and check `BepInEx\LogOutput.log` for lines like:
+
+```
+[Info: Trials Survivors: Uncap AoE] authored cap: SS_Effect_AOE = 8
+```
+
+Those confirm the prefix is firing on real casts, and tell you the game's real
+authored numbers — which is also the data needed to pick a sensible `Multiplier`
+or `MinimumTargets` if full uncap turns out to be too much.
