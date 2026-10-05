@@ -1,0 +1,9 @@
+# build output
+bin/
+obj/
+
+# tooling binaries and dumps are large and reproducible from scripts
+tools/*.exe
+tools/*.zip
+tools/Plugins/
+dumps/
