@@ -105,12 +105,15 @@ internal static class QualityForcer
         {
             Cards++;
             if (!hadTarget) WithoutTarget++;
-            if (rolled != null && chosen != null && rolled.Pointer == chosen.Pointer)
+            if (Same(rolled, chosen))
             {
                 if (hadTarget) AlreadyTarget++;
             }
             else Upgraded++;
         }
+
+        private static bool Same(SO_QualityIdentifier rolled, SO_QualityIdentifier chosen) =>
+            rolled == null ? chosen == null : chosen != null && rolled.Pointer == chosen.Pointer;
     }
 }
 

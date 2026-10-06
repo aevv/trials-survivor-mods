@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.AllLegendary</AssemblyName>
     <Version>0.1.0</Version>
+    <Description>Every level-up card comes up legendary. Cards with no legendary tier get their best one instead.</Description>
   </PropertyGroup>
 
 </Project>
