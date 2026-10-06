@@ -18,6 +18,8 @@ public sealed class Plugin : BasePlugin
     internal ConfigEntry<float> Multiplier = null!;
     internal ConfigEntry<int> MinimumTargets = null!;
     internal ConfigEntry<bool> LogOriginalLimits = null!;
+    internal ConfigEntry<bool> KeepCapOnSpawners = null!;
+    internal ConfigEntry<bool> UncapAimedProjectiles = null!;
 
     public override void Load()
     {
@@ -37,6 +39,14 @@ public sealed class Plugin : BasePlugin
 
         MinimumTargets = Config.Bind("General", "MinimumTargets", 50,
             new ConfigDescription("Used when Mode is Minimum.", new AcceptableValueRange<int>(1, 256)));
+
+        KeepCapOnSpawners = Config.Bind("General", "KeepCapOnSpawners", true,
+            "Leave the cap alone on AoEs that launch projectiles or chains at each target they hit. " +
+            "Those AoEs use the cap to pick how many things to spawn, so uncapping them spawns one per enemy in range.");
+
+        UncapAimedProjectiles = Config.Bind("General", "UncapAimedProjectiles", false,
+            "Also rewrite the cap on aimed projectile launchers. Their cap is how many targets get a projectile, " +
+            "so uncapping fires one projectile per enemy in range.");
 
         LogOriginalLimits = Config.Bind("Diagnostics", "LogOriginalLimits", false,
             "Log each distinct authored cap the game asks for, once per effect type and value. " +
@@ -83,7 +93,7 @@ internal static class LimitRewriter
     /// Authored cap per instance, so repeated casts rewrite from the original value rather than
     /// compounding a multiplier onto an already-raised one. Keyed on the IL2CPP object pointer.
     /// </summary>
-    private static readonly Dictionary<nint, int> AuthoredLimits = new();
+    private static readonly Dictionary<nint, (int Authored, string? SpawnReason)> AuthoredLimits = new();
 
     /// <summary>Effect-type/value pairs already reported, to keep diagnostics to one line each.</summary>
     private static readonly HashSet<(string, int)> LoggedLimits = new();
@@ -92,20 +102,31 @@ internal static class LimitRewriter
     /// Returns the value to write, or null to leave the effect alone. Called from a prefix, so the
     /// write lands before detection runs — a postfix would only take effect on the next cast.
     /// </summary>
-    internal static int? Rewrite(string effectType, nint instance, int current)
+    internal static int? Rewrite(string effectType, nint instance, int current, SS_Behaviour? spawnSource = null)
     {
         var plugin = Plugin.Instance;
         if (!plugin.Enabled.Value) return null;
 
-        if (!AuthoredLimits.TryGetValue(instance, out var authored))
+        if (!AuthoredLimits.TryGetValue(instance, out var entry))
         {
-            authored = current;
-            AuthoredLimits[instance] = authored;
+            entry = (current, spawnSource is null ? null : SpawnDetector.FindSpawnPerTarget(spawnSource));
+            AuthoredLimits[instance] = entry;
 
-            if (plugin.LogOriginalLimits.Value && LoggedLimits.Add((effectType, authored)))
+            if (plugin.LogOriginalLimits.Value && LoggedLimits.Add((effectType, entry.Authored)))
             {
-                plugin.Log.LogInfo($"authored cap: {effectType} = {Describe(authored)}");
+                plugin.Log.LogInfo($"authored cap: {effectType} = {Describe(entry.Authored)}");
             }
+
+            if (plugin.LogOriginalLimits.Value && entry.SpawnReason is not null && entry.Authored >= 0)
+            {
+                plugin.Log.LogInfo($"keeping cap {entry.Authored} on {effectType}: launches {entry.SpawnReason} per target");
+            }
+        }
+
+        var authored = entry.Authored;
+        if (entry.SpawnReason is not null && plugin.KeepCapOnSpawners.Value)
+        {
+            return authored == current ? null : authored;
         }
 
         // -1 is already unlimited; -2 defers to a designer formula we have no safe way to scale,
@@ -143,7 +164,7 @@ internal static class SphereAoePatch
     [HarmonyPrefix]
     private static void Prefix(SS_Effect_AOE __instance)
     {
-        if (LimitRewriter.Rewrite(nameof(SS_Effect_AOE), __instance.Pointer, __instance._limitDetectionCount) is { } limit)
+        if (LimitRewriter.Rewrite(nameof(SS_Effect_AOE), __instance.Pointer, __instance._limitDetectionCount, __instance) is { } limit)
         {
             __instance._limitDetectionCount = limit;
         }
@@ -156,7 +177,7 @@ internal static class LineAoePatch
     [HarmonyPrefix]
     private static void Prefix(SS_Effect_AOE_Line __instance)
     {
-        if (LimitRewriter.Rewrite(nameof(SS_Effect_AOE_Line), __instance.Pointer, __instance._limitDetectionCount) is { } limit)
+        if (LimitRewriter.Rewrite(nameof(SS_Effect_AOE_Line), __instance.Pointer, __instance._limitDetectionCount, __instance) is { } limit)
         {
             __instance._limitDetectionCount = limit;
         }
@@ -169,6 +190,8 @@ internal static class AimedProjectilePatch
     [HarmonyPrefix]
     private static void Prefix(SS_Behaviour_LaunchAimedProjectile __instance)
     {
+        if (!Plugin.Instance.UncapAimedProjectiles.Value) return;
+
         if (LimitRewriter.Rewrite(nameof(SS_Behaviour_LaunchAimedProjectile), __instance.Pointer, __instance._limitDetectionCount) is { } limit)
         {
             __instance._limitDetectionCount = limit;

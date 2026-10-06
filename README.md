@@ -114,6 +114,8 @@ launch):
 | `Mode`              | `NoLimit` | `NoLimit` / `Multiplier` / `Minimum`                          |
 | `Multiplier`        | `4`       | scales the authored cap, keeping relative skill balance        |
 | `MinimumTargets`    | `50`      | floor for `Minimum` mode                                       |
+| `KeepCapOnSpawners` | `true`    | leave AoEs that launch projectiles/chains per target capped     |
+| `UncapAimedProjectiles` | `false` | also uncap aimed projectile launchers (one projectile per enemy) |
 | `LogOriginalLimits` | `false`   | logs each distinct authored cap once — good for discovery      |
 
 How it works: each effect carries an authored `_limitDetectionCount` that the
@@ -132,6 +134,17 @@ effects capped.
 
 Caps the mod deliberately leaves alone: effects authored as `-2` (a designer
 formula we can't scale meaningfully) and anything already `-1`.
+
+Some skills use a capped AoE as a **target picker**, not a damage zone: "find the
+nearest N enemies and launch an orb at each". `_effectsOnHit` runs once per detected
+target, so uncapping those spawns one projectile per enemy on screen (this is what
+broke Aqua Nova). The mod asks the game's own `GetChildrenEffectInstance` walk
+which effect instances an AoE can produce. If any is an `SSV2_ProjectileInstance` or
+`SSV2_ChainingInstance`, the cap is kept. This includes projectiles launched on kill,
+so some AoEs stay capped when they didn't strictly need to. Aimed projectile
+launchers are the same thing by construction (their cap *is* the projectile count), so
+they're only rewritten when `UncapAimedProjectiles` is on. With `LogOriginalLimits`
+on, each kept cap is logged as `keeping cap N on <type>: launches <instance> per target`.
 
 Two things to expect:
 
