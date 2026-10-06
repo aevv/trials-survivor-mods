@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>TrialsSurvivors.RunHud</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InteropReference Include="UnityEngine.UI;UnityEngine.UIModule;Unity.TextMeshPro;Il2CppSystem.Core" />
+  </ItemGroup>
+
+</Project>

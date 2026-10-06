@@ -12,15 +12,15 @@ tasks:
     silent: true
 
   build:
-    desc: Build every mod
+    desc: Build every mod and the loader
     cmds:
-      - dotnet build TMods.sln {{.BUILD_FLAGS}}
+      - dotnet build TSMods.slnx {{.BUILD_FLAGS}}
 
   deploy:
     desc: Build every mod and copy it into BepInEx\plugins (game must be closed)
     deps: [game:ensure-closed]
     cmds:
-      - dotnet build TMods.sln {{.BUILD_FLAGS}} -p:Deploy=true
+      - dotnet build TSMods.slnx {{.BUILD_FLAGS}} -p:Deploy=true
 
   deploy:one:
     desc: "Build and deploy a single mod, e.g. task deploy:one MOD=RunHud"
@@ -28,7 +28,7 @@ tasks:
     requires:
       vars: [MOD]
     cmds:
-      - dotnet build src/TrialsSurvivors.{{.MOD}} {{.BUILD_FLAGS}} -p:Deploy=true
+      - dotnet build mods/TrialsSurvivors.{{.MOD}} {{.BUILD_FLAGS}} -p:Deploy=true
 
   play:
     desc: Close the game if it's running, deploy every mod, then relaunch

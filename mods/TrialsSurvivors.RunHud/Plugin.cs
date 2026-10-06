@@ -5,7 +5,7 @@ using HarmonyLib;
 
 namespace TrialsSurvivors.RunHud;
 
-[BepInPlugin(Guid, "Trials Survivors: Run HUD", "0.1.0")]
+[BepInPlugin(Guid, "Trials Survivors: Run HUD", MyPluginInfo.PLUGIN_VERSION)]
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "net.aevv.trialssurvivors.runhud";

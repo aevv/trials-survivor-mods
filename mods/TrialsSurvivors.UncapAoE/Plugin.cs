@@ -6,7 +6,7 @@ using HarmonyLib;
 
 namespace TrialsSurvivors.UncapAoE;
 
-[BepInPlugin(Guid, "Trials Survivors: Uncap AoE", "0.2.0")]
+[BepInPlugin(Guid, "Trials Survivors: Uncap AoE", MyPluginInfo.PLUGIN_VERSION)]
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "net.aevv.trialssurvivors.uncapaoe";

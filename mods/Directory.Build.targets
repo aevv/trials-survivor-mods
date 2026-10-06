@@ -1,0 +1,47 @@
+<Project>
+
+  <ItemGroup>
+    <Reference Include="@(InteropReference)">
+      <HintPath>$(InteropPath)\%(Identity).dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckInterop" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(InteropPath)\Assembly-CSharp.dll')"
+           Text="Interop assemblies not found at '$(InteropPath)'. Install BepInEx (tools\install-bepinex.ps1) and launch the game once, or pass -p:GamePath=..." />
+  </Target>
+
+  <!-- Records which game build the mod was compiled against, so the loader can
+       tell when the installed game has moved on. Read back as AssemblyMetadata. -->
+  <Target Name="StampGameBuild" BeforeTargets="GetAssemblyAttributes" Condition="Exists('$(GamePath)\GameAssembly.dll')">
+    <PropertyGroup>
+      <_SteamManifest>$([System.IO.Path]::GetFullPath('$(GamePath)\..\..\appmanifest_$(SteamAppId).acf'))</_SteamManifest>
+      <GameBuildId Condition="Exists('$(_SteamManifest)')">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(_SteamManifest)')), '"buildid"\s+"(\d+)"').Groups[1].Value)</GameBuildId>
+    </PropertyGroup>
+    <GetFileHash Files="$(GamePath)\GameAssembly.dll" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="GameAssemblyHash" />
+    </GetFileHash>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>TSMods.GameBuildId</_Parameter1>
+        <_Parameter2>$(GameBuildId)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>TSMods.GameAssemblyHash</_Parameter1>
+        <_Parameter2>$(GameAssemblyHash.ToLowerInvariant())</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>TSMods.BepInExVersion</_Parameter1>
+        <_Parameter2>$(BepInExVersion)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(Deploy)' == 'true'">
+    <MakeDir Directories="$(GamePath)\BepInEx\plugins" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GamePath)\BepInEx\plugins" />
+    <Message Importance="high" Text="deployed $(TargetFileName) -> $(GamePath)\BepInEx\plugins" />
+  </Target>
+
+</Project>

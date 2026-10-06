@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>TrialsSurvivors.UncapAoE</AssemblyName>
+    <Version>0.2.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InteropReference Include="Il2CppSystem.Core" />
+  </ItemGroup>
+
+</Project>

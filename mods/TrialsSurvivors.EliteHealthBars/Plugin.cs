@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace TrialsSurvivors.EliteHealthBars;
 
-[BepInPlugin(Guid, "Trials Survivors: Elite Health Bars", "0.1.0")]
+[BepInPlugin(Guid, "Trials Survivors: Elite Health Bars", MyPluginInfo.PLUGIN_VERSION)]
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "net.aevv.trialssurvivors.elitehealthbars";

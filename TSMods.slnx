@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/mods/">
+    <Project Path="mods/TrialsSurvivors.EliteHealthBars/TrialsSurvivors.EliteHealthBars.csproj" />
+    <Project Path="mods/TrialsSurvivors.RunHistory/TrialsSurvivors.RunHistory.csproj" />
+    <Project Path="mods/TrialsSurvivors.RunHud/TrialsSurvivors.RunHud.csproj" />
+    <Project Path="mods/TrialsSurvivors.UncapAoE/TrialsSurvivors.UncapAoE.csproj" />
+  </Folder>
+</Solution>

@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 
 namespace TrialsSurvivors.RunHistory;
 
-[BepInPlugin(Guid, "Trials Survivors: Run History", "0.1.0")]
+[BepInPlugin(Guid, "Trials Survivors: Run History", MyPluginInfo.PLUGIN_VERSION)]
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "net.aevv.trialssurvivors.runhistory";

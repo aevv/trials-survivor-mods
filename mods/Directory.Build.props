@@ -1,0 +1,30 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RestoreAdditionalProjectSources>https://nuget.bepinex.dev/v3/index.json</RestoreAdditionalProjectSources>
+    <BepInExVersion>6.0.0-be.788</BepInExVersion>
+    <SteamAppId>3762660</SteamAppId>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GamePath Condition="'$(GamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Trials Survivors</GamePath>
+    <InteropPath>$(GamePath)\BepInEx\interop</InteropPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="$(BepInExVersion)" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Interop assemblies are generated into the game folder by BepInEx on first
+       launch, so they are a local prerequisite rather than a restorable package.
+       Projects add the extra ones they need as InteropReference items. -->
+  <ItemGroup>
+    <InteropReference Include="Assembly-CSharp;UnityEngine.CoreModule;Il2Cppmscorlib" />
+  </ItemGroup>
+
+</Project>
