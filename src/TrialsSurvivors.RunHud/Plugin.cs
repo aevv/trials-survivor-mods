@@ -18,6 +18,9 @@ public sealed class Plugin : BasePlugin
     internal ConfigEntry<bool> ShowRooms = null!;
     internal ConfigEntry<bool> ShowMonsterModifiers = null!;
     internal ConfigEntry<float> RefreshInterval = null!;
+    internal ConfigEntry<float> FontScale = null!;
+    internal ConfigEntry<float> OffsetX = null!;
+    internal ConfigEntry<float> OffsetY = null!;
 
     public override void Load()
     {
@@ -31,6 +34,11 @@ public sealed class Plugin : BasePlugin
             "Show a second line summarising the monster card buffs currently applied to every enemy.");
         RefreshInterval = Config.Bind("General", "RefreshInterval", 0.25f,
             new ConfigDescription("Seconds between text refreshes.", new AcceptableValueRange<float>(0.05f, 5f)));
+
+        FontScale = Config.Bind("Layout", "FontScale", 0.45f,
+            new ConfigDescription("Text size relative to the XP bar's level number.", new AcceptableValueRange<float>(0.1f, 2f)));
+        OffsetX = Config.Bind("Layout", "OffsetX", 8f, "Pixels in from the right end of the XP bar.");
+        OffsetY = Config.Bind("Layout", "OffsetY", 6f, "Pixels above the top of the XP bar.");
 
         new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
 

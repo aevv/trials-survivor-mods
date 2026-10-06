@@ -16,25 +16,27 @@ internal static class RunHudState
         try
         {
             var levelText = xpBar._levelText;
-            if (levelText == null) return;
+            var bar = xpBar._xpBarImage;
+            if (levelText == null || bar == null) return;
 
-            var clone = UnityEngine.Object.Instantiate(levelText.gameObject, levelText.transform.parent);
+            var clone = UnityEngine.Object.Instantiate(levelText.gameObject, bar.rectTransform);
             clone.name = "RunHudStats";
 
             var localizer = clone.GetComponent<TMPLocalizer>();
             if (localizer != null) UnityEngine.Object.Destroy(localizer);
 
-            Mirror(levelText.rectTransform, clone.GetComponent<RectTransform>());
-
             var label = clone.GetComponent<TextMeshProUGUI>();
-            label.alignment = MirrorAlignment(levelText.alignment);
+            label.fontSize = levelText.fontSize * Plugin.Instance.FontScale.Value;
+            label.enableAutoSizing = false;
+            label.alignment = TextAlignmentOptions.BottomRight;
             label.enableWordWrapping = false;
             label.overflowMode = TextOverflowModes.Overflow;
             label.richText = true;
             label.text = "";
 
+            PlaceAboveRightEnd(label.rectTransform);
             Label = label;
-            Plugin.Instance.Log.LogInfo("attached run stats to the XP bar");
+            Plugin.Instance.Log.LogInfo($"attached run stats to the XP bar '{bar.name}' (type {bar.type}, fill {bar.fillAmount:0.##}, width {bar.rectTransform.rect.width:0}, level font {levelText.fontSize:0})");
         }
         catch (Exception e)
         {
@@ -42,21 +44,15 @@ internal static class RunHudState
         }
     }
 
-    private static void Mirror(RectTransform source, RectTransform target)
+    public static void PlaceAboveRightEnd(RectTransform rect)
     {
-        target.anchorMin = new Vector2(1f - source.anchorMax.x, source.anchorMin.y);
-        target.anchorMax = new Vector2(1f - source.anchorMin.x, source.anchorMax.y);
-        target.pivot = new Vector2(1f - source.pivot.x, source.pivot.y);
-        target.anchoredPosition = new Vector2(-source.anchoredPosition.x, source.anchoredPosition.y);
-        target.sizeDelta = new Vector2(Mathf.Max(source.sizeDelta.x * 4f, 400f), source.sizeDelta.y);
-    }
-
-    private static TextAlignmentOptions MirrorAlignment(TextAlignmentOptions alignment)
-    {
-        var name = alignment.ToString();
-        var mirrored = name.Contains("Left") ? name.Replace("Left", "Right")
-            : name.Contains("Right") ? name.Replace("Right", "Left")
-            : "MidlineRight";
-        return Enum.TryParse<TextAlignmentOptions>(mirrored, out var result) ? result : TextAlignmentOptions.MidlineRight;
+        var plugin = Plugin.Instance;
+        rect.anchorMin = Vector2.one;
+        rect.anchorMax = Vector2.one;
+        rect.localRotation = Quaternion.identity;
+        rect.localScale = Vector3.one;
+        rect.sizeDelta = new Vector2(1200f, 200f);
+        rect.pivot = new Vector2(1f, 0f);
+        rect.anchoredPosition = new Vector2(-plugin.OffsetX.Value, plugin.OffsetY.Value);
     }
 }
