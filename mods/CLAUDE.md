@@ -24,7 +24,8 @@ installed game. Don't remove it.
    and add the same path to `TSMods.Mods.slnf` so `task deploy` picks it up.
 5. Add a README section for it, then `task deploy`. `task tsmods -- check <Name>` confirms every game
    member and Harmony target it uses resolves against the current interop.
-6. To ship it, bump `Version` and run `task release MOD=<Name>`. Use `DRY=1` first.
+6. To ship it, bump `Version`, commit, and run `task release MOD=<Name>` (or `task release:all`). Use `DRY=1`
+   first. Mods are released from here, not CI: CI has no game interop to build against.
 
 ## Shape of a plugin
 

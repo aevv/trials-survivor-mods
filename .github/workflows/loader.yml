@@ -1,0 +1,92 @@
+name: loader
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - loader/**
+      - global.json
+      - NuGet.config
+      - Taskfile.yml
+      - .github/workflows/loader.yml
+  pull_request:
+    paths:
+      - loader/**
+      - global.json
+      - NuGet.config
+      - Taskfile.yml
+      - .github/workflows/loader.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: loader-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOTNET_NOLOGO: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: go-task/setup-task@v1
+
+      - name: Test
+        run: task test
+
+      - name: Work out the release
+        id: release
+        shell: pwsh
+        run: |
+          $version = (Select-Xml -Path loader/Directory.Build.props -XPath '//Version').Node.InnerText.Trim()
+          $tag = "loader-v$version"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          $released = $LASTEXITCODE -eq 0
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "released=$($released.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if ($released) { "$tag is already released, bump <Version> in loader/Directory.Build.props to ship a new one" }
+          else { "$tag will be released" }
+          exit 0
+
+      - name: Publish
+        run: task loader:publish
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $zip = "TSMods-${{ steps.release.outputs.version }}-win-x64.zip"
+          Get-ChildItem dist/loader -Filter *.pdb | Remove-Item
+          Compress-Archive -Path dist/loader/* -DestinationPath $zip
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tsmods-loader
+          path: ${{ steps.package.outputs.zip }}
+
+      - name: Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.release.outputs.released == 'false'
+        shell: pwsh
+        run: |
+          $notes = @"
+          TSMods ${{ steps.release.outputs.version }}, the mod manager for Trials Survivors.
+
+          Unzip anywhere and run ``TSMods.Loader.exe``. ``tsmods.exe`` is the command line version.
+          It finds the game through Steam, can install BepInEx for you, and lists the mods from this repo's releases under **Get mods**.
+          "@
+          gh release create "${{ steps.release.outputs.tag }}" "${{ steps.package.outputs.zip }}" `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "TSMods ${{ steps.release.outputs.version }}" `
+            --notes $notes `
+            --latest

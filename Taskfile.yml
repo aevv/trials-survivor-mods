@@ -137,3 +137,8 @@ tasks:
       vars: [MOD]
     cmds:
       - '{{.PWSH}} -File tools/release.ps1 -Mod {{.MOD}} -GamePath "{{.GAME_PATH}}" {{if .DRY}}-DryRun{{end}}'
+
+  release:all:
+    desc: "Release every mod whose <Version> isn't on GitHub yet (DRY=1 to preview). The loader is released by CI"
+    cmds:
+      - '{{.PWSH}} -File tools/release.ps1 -GamePath "{{.GAME_PATH}}" {{if .DRY}}-DryRun{{end}}'

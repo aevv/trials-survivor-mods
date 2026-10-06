@@ -22,7 +22,8 @@ runtime through Il2CppInterop.
 | `tools/dump.ps1`         | Dumps the game's IL2CPP assemblies to readable .NET DLLs                    |
 | `tools/decompile.ps1`    | Turns those into a greppable per-type C# source tree                        |
 | `tools/install-bepinex.ps1` | Installs/removes BepInEx 6 IL2CPP in the game folder                     |
-| `tools/release.ps1`      | Publishes one mod as a GitHub release the loader can install                |
+| `tools/release.ps1`      | Publishes mods as GitHub releases the loader can install                    |
+| `.github/workflows/loader.yml` | Tests the loader, and releases it when its version is bumped          |
 | `docs/findings.md`       | Reverse-engineering notes — types, fields, caps, offsets                    |
 | `TSMods.slnx`            | Everything. `TSMods.Mods.slnf` is just the mods, which is what `task deploy` builds |
 
@@ -74,6 +75,7 @@ There's a `Taskfile.yml` for the loop you'll repeat constantly (`task` with no a
 | `task loader:publish`        | single-file `TSMods.Loader.exe` and `tsmods.exe` in `dist\loader`   |
 | `task loader:screenshots`    | render the app headlessly against the real install into `dumps\screenshots` |
 | `task release MOD=RunHud`    | publish a mod as a GitHub release (`DRY=1` to preview)              |
+| `task release:all`           | publish every mod whose version isn't released yet (`DRY=1` to preview) |
 
 Pass `GAME_PATH=...` to any task if the game isn't in the default Steam library.
 
@@ -104,6 +106,24 @@ that does everything the app does. Both sit on `TSMods.Core`.
   uninstalling anything. **Install BepInEx** downloads the pinned be.788 build.
 - **Get mods** lists releases on `aevv/trials-survivor-mods`. `task release MOD=<Name>`
   builds a mod, reads its stamp and creates a `<name>-v<version>` release with the DLL attached.
+
+### Installing it
+
+Grab `TSMods-<version>-win-x64.zip` from the [latest release](https://github.com/aevv/trials-survivor-mods/releases/latest),
+unzip it anywhere and run `TSMods.Loader.exe`. It finds the game through Steam, installs BepInEx if
+it's missing, and **Get mods** installs any of the mods below. Launch the game once after installing
+BepInEx so it can generate its interop assemblies.
+
+### Releasing
+
+- **The loader** is released by CI. Bump `<Version>` in `loader/Directory.Build.props` and push to
+  main. `.github/workflows/loader.yml` runs the tests, publishes both exes and creates a
+  `loader-v<version>` release with the zip, marked as the repo's latest release. Every run also
+  uploads the zip as a build artifact, PRs included.
+- **Mods** are released from a machine with the game installed, because they compile against the
+  game's `BepInEx\interop` assemblies, which can't go in a public repo. Bump `<Version>` in the mod's
+  csproj, commit, then `task release:all` ships every mod whose version has no tag yet. It refuses mods
+  with uncommitted changes. Mod releases never take the latest flag, so that keeps pointing at the loader.
 
 ```powershell
 task tsmods -- status          # game, build, BepInEx, interop freshness
