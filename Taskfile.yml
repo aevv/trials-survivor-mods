@@ -1,0 +1,102 @@
+version: '3'
+
+vars:
+  GAME_PATH: '{{.GAME_PATH | default "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Trials Survivors"}}'
+  PWSH: pwsh -NoProfile -ExecutionPolicy Bypass
+  BUILD_FLAGS: -c Release --verbosity quiet -nowarn:NU1603 -p:GamePath="{{.GAME_PATH}}"
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build every mod
+    cmds:
+      - dotnet build TMods.sln {{.BUILD_FLAGS}}
+
+  deploy:
+    desc: Build every mod and copy it into BepInEx\plugins (game must be closed)
+    deps: [game:ensure-closed]
+    cmds:
+      - dotnet build TMods.sln {{.BUILD_FLAGS}} -p:Deploy=true
+
+  deploy:one:
+    desc: "Build and deploy a single mod, e.g. task deploy:one MOD=RunHud"
+    deps: [game:ensure-closed]
+    requires:
+      vars: [MOD]
+    cmds:
+      - dotnet build src/TrialsSurvivors.{{.MOD}} {{.BUILD_FLAGS}} -p:Deploy=true
+
+  play:
+    desc: Close the game if it's running, deploy every mod, then relaunch
+    cmds:
+      - task: game:stop
+      - task: deploy
+      - task: game:start
+
+  game:status:
+    desc: Show whether the game is running
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action status -GamePath "{{.GAME_PATH}}"'
+    silent: true
+
+  game:ensure-closed:
+    internal: true
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action ensure-closed -GamePath "{{.GAME_PATH}}"'
+    silent: true
+
+  game:stop:
+    desc: Close the game
+    prompt: Close Trials Survivors? Unsaved run progress will be lost.
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action stop -GamePath "{{.GAME_PATH}}"'
+    silent: true
+
+  game:start:
+    desc: Launch the game through Steam
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action start -GamePath "{{.GAME_PATH}}"'
+    silent: true
+
+  logs:
+    desc: "Mod lines, warnings and errors from the BepInEx log (LINES=n, default 40)"
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action logs -GamePath "{{.GAME_PATH}}" -Lines {{.LINES | default 40}}'
+    silent: true
+
+  logs:errors:
+    desc: Exceptions from Unity's Player.log (where TMP/UI errors land, not the BepInEx log)
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action errors -GamePath "{{.GAME_PATH}}"'
+    silent: true
+
+  runs:
+    desc: List runs recorded by the run history mod
+    cmds:
+      - '{{.PWSH}} -File tools/game.ps1 -Action runs -GamePath "{{.GAME_PATH}}"'
+    silent: true
+
+  dump:
+    desc: "Dump the game's IL2CPP assemblies (FORMAT=dll_il_recovery|isil|diffable-cs|...)"
+    cmds:
+      - '{{.PWSH}} -File tools/dump.ps1 -GamePath "{{.GAME_PATH}}" -Format {{.FORMAT | default "dll_il_recovery"}}'
+
+  decompile:
+    desc: Decompile the dumps into a greppable per-type C# tree under dumps\cs
+    cmds:
+      - '{{.PWSH}} -File tools/decompile.ps1 -GamePath "{{.GAME_PATH}}"'
+
+  bepinex:install:
+    desc: Install BepInEx 6 IL2CPP into the game folder
+    cmds:
+      - '{{.PWSH}} -File tools/install-bepinex.ps1 -GamePath "{{.GAME_PATH}}"'
+
+  bepinex:uninstall:
+    desc: Remove BepInEx and restore the game to vanilla
+    prompt: Remove BepInEx and all mods from the game folder?
+    cmds:
+      - '{{.PWSH}} -File tools/install-bepinex.ps1 -GamePath "{{.GAME_PATH}}" -Uninstall'

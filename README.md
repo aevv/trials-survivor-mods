@@ -46,6 +46,24 @@ Keep the loader build and the `BepInEx.Unity.IL2CPP` NuGet version in step
 To get the game back to vanilla: `tools\install-bepinex.ps1 -Uninstall`. Nothing
 in this repo ever writes to a game file; everything is additive.
 
+## Day to day
+
+There's a `Taskfile.yml` for the loop you'll repeat constantly (`task` with no args lists everything):
+
+| task                         | what it does                                                        |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `task build`                 | build every mod (`TMods.sln`)                                       |
+| `task deploy`                | build and copy every mod into `BepInEx\plugins`, refusing if the game is running (it locks the DLLs) |
+| `task deploy:one MOD=RunHud` | same, for one mod                                                   |
+| `task play`                  | close the game (asks first), deploy, relaunch through Steam         |
+| `task game:status` / `game:start` / `game:stop` | the game process                                 |
+| `task logs`                  | mod lines, warnings and errors from `BepInEx\LogOutput.log`         |
+| `task logs:errors`           | exceptions from Unity's `Player.log`. UI/TMP errors land here, not in the BepInEx log |
+| `task runs`                  | runs recorded by the run history mod                                |
+| `task dump` / `task decompile` | wrappers for the scripts below                                    |
+
+Pass `GAME_PATH=...` to any task if the game isn't in the default Steam library.
+
 ## Reading the game
 
 Dump once, then grep — you shouldn't need to re-dump to work out what to patch.
