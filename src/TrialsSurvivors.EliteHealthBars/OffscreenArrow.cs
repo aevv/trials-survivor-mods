@@ -78,10 +78,10 @@ internal sealed class OffscreenArrow
 
         texture.SetPixels32(pixels);
         texture.Apply();
-        Object.DontDestroyOnLoad(texture);
+        texture.hideFlags = HideFlags.HideAndDontSave;
 
         var sprite = Sprite.Create(texture, new Rect(0f, 0f, TextureSize, TextureSize), new Vector2(0.5f, 0.5f));
-        Object.DontDestroyOnLoad(sprite);
+        sprite.hideFlags = HideFlags.HideAndDontSave;
         return sprite;
     }
 }

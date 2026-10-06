@@ -81,7 +81,7 @@ public sealed class Plugin : BasePlugin
         ShowOffscreenArrows = Config.Bind("Arrows", "ShowOffscreenArrows", true,
             "Point an arrow at the screen edge towards each elite that's off screen.");
 
-        ArrowSize = Config.Bind("Arrows", "ArrowSize", 28f,
+        ArrowSize = Config.Bind("Arrows", "ArrowSize", 56f,
             new ConfigDescription("Arrow size at 1080p.", new AcceptableValueRange<float>(8f, 128f)));
 
         ArrowMargin = Config.Bind("Arrows", "ArrowMargin", 40f,

@@ -9,6 +9,32 @@ internal static class RunCapture
 {
     private static (RunResultType, float, int)? _lastCaptured;
 
+    internal static RunRecord? LastRecord { get; private set; }
+    internal static nint LastRecapData { get; private set; }
+
+    internal static void ReadSkills(RunRecapData data, RunRecord record)
+    {
+        var skills = data._skillEntries;
+        if (skills == null) return;
+
+        record.Skills.Clear();
+        for (var i = 0; i < skills.Count; i++)
+        {
+            var skill = skills[i];
+            record.Skills.Add(new SkillRecord
+            {
+                NameKey = skill.NameLocalizeID ?? "",
+                Name = Localize(skill.NameLocalizeID),
+                IconSprite = skill.Icon != null ? skill.Icon.name : "",
+                Level = skill.CurrentLevel,
+                MaxLevel = skill.MaxLevel,
+                DamageDealt = skill.CumulativeDamageDealt,
+                Kills = skill.CumulativeKills,
+                DamagePercent = skill.DamagePercent
+            });
+        }
+    }
+
     [HarmonyPostfix]
     private static void Postfix(RunStatsTracker __instance, RunRecapData data, RunResultType result)
     {
@@ -46,25 +72,7 @@ internal static class RunCapture
             foreach (var entry in __instance._killsByEntityType) record.KillsByEntityType[entry.Key] = entry.Value;
         });
 
-        Capture("skills", () =>
-        {
-            var skills = data._skillEntries;
-            for (var i = 0; i < skills.Count; i++)
-            {
-                var skill = skills[i];
-                record.Skills.Add(new SkillRecord
-                {
-                    NameKey = skill.NameLocalizeID ?? "",
-                    Name = Localize(skill.NameLocalizeID),
-                    IconSprite = skill.Icon != null ? skill.Icon.name : "",
-                    Level = skill.CurrentLevel,
-                    MaxLevel = skill.MaxLevel,
-                    DamageDealt = skill.CumulativeDamageDealt,
-                    Kills = skill.CumulativeKills,
-                    DamagePercent = skill.DamagePercent
-                });
-            }
-        });
+        Capture("skills", () => ReadSkills(data, record));
 
         Capture("class", () =>
         {
@@ -91,6 +99,8 @@ internal static class RunCapture
         try
         {
             RunStore.Save(record);
+            LastRecord = record;
+            LastRecapData = data.Pointer;
             Plugin.Instance.Log.LogInfo(
                 $"recorded {record.Result} run: {record.ClassName}, {record.Difficulty}, {RunFormat.Duration(record.DurationSeconds)}, " +
                 $"{record.Kills} kills, {record.Skills.Count} skills");
@@ -126,6 +136,29 @@ internal static class RunCapture
         catch (Exception e)
         {
             Plugin.Instance.Log.LogWarning($"couldn't capture {part}: {e.Message}");
+        }
+    }
+}
+
+[HarmonyPatch(typeof(RunRecapData), nameof(RunRecapData.PopulateSkillRecap))]
+internal static class SkillRecapPatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(RunRecapData __instance)
+    {
+        var record = RunCapture.LastRecord;
+        if (record == null || RunCapture.LastRecapData != __instance.Pointer) return;
+        if ((DateTime.UtcNow - record.EndedAtUtc).TotalMinutes > 5) return;
+
+        try
+        {
+            RunCapture.ReadSkills(__instance, record);
+            RunStore.Rewrite(record);
+            Plugin.Instance.Log.LogInfo($"added {record.Skills.Count} skills to the {record.Result} run");
+        }
+        catch (Exception e)
+        {
+            Plugin.Instance.Log.LogWarning($"couldn't add skills to the run: {e.Message}");
         }
     }
 }

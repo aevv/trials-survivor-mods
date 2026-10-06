@@ -21,6 +21,8 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
     private string? _loggedCameraName;
     private int _canvasesCreated;
     private float _nextHeartbeat;
+    private int _lastArrows;
+    private readonly Dictionary<string, int> _staleReasons = new();
 
     public EliteHealthBarRenderer(IntPtr ptr) : base(ptr)
     {
@@ -41,8 +43,9 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
 
             foreach (var elite in EliteTracker.All)
             {
-                if (!TryGetFraction(elite, out var fraction))
+                if (StaleReason(elite, out var fraction) is { } reason)
                 {
+                    _staleReasons[reason] = _staleReasons.TryGetValue(reason, out var count) ? count + 1 : 1;
                     EliteTracker.MarkStale(elite);
                     continue;
                 }
@@ -77,6 +80,7 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         for (var i = used; i < _pool.Count; i++) _pool[i].Hide();
         for (var i = arrowsUsed; i < _arrows.Count; i++) _arrows[i].Hide();
 
+        _lastArrows = arrowsUsed;
         LogHeartbeat(used);
     }
 
@@ -96,24 +100,27 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         if (_canvasesCreated > 1) Plugin.Instance.Log.LogWarning($"overlay canvas was destroyed; recreated (#{_canvasesCreated})");
     }
 
-    private static bool TryGetFraction(TrackedElite elite, out float fraction)
+    private static string? StaleReason(TrackedElite elite, out float fraction)
     {
         fraction = 0f;
 
         var module = elite.Module;
-        if (module.WasCollected || module == null || !module.IsElite || !module.gameObject.activeInHierarchy) return false;
+        if (module.WasCollected || module == null) return "destroyed";
+        if (!module.IsElite) return "no longer elite";
+        if (!module.gameObject.activeInHierarchy) return "inactive";
 
         elite.Entity ??= module.ARPGEntity;
-        if (elite.Entity == null) return false;
+        if (elite.Entity == null) return "no entity";
 
         elite.Health ??= elite.Entity.HealthModule;
-        if (elite.Health == null || elite.Health.IsDead) return false;
+        if (elite.Health == null) return "no health";
+        if (elite.Health.IsDead) return "dead";
 
         var vitality = elite.Health.Vitality;
-        if (vitality == null || vitality.Max <= 0f) return false;
+        if (vitality == null || vitality.Max <= 0f) return "no vitality";
 
         fraction = Mathf.Clamp01(vitality.Value / vitality.Max);
-        return true;
+        return null;
     }
 
     private static BarStyle BuildStyle(Plugin plugin, float scale) => new(
@@ -181,7 +188,8 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
             $"{c.name}(depth {c.depth}, enabled {c.isActiveAndEnabled}, mask 0x{c.cullingMask:X8})"));
 
         Plugin.Instance.Log.LogInfo(
-            $"heartbeat: tracked={EliteTracker.Count} drawn={drawn} activations={EliteTracker.Activations} " +
+            $"heartbeat: tracked={EliteTracker.Count} drawn={drawn} arrows={_lastArrows} activations={EliteTracker.Activations} " +
+            $"dropped=[{string.Join(", ", _staleReasons.Select(kv => $"{kv.Key}: {kv.Value}"))}] " +
             $"canvas={(_canvas != null ? "ok" : "missing")} using='{(_camera != null ? _camera.name : "none")}' " +
             $"all=[{cameras}]");
     }

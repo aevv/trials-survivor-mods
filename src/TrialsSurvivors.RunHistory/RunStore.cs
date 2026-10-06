@@ -19,12 +19,16 @@ internal static class RunStore
 
     public static void Save(RunRecord record)
     {
+        _cache ??= Load();
+        Rewrite(record);
+        _cache.Insert(0, record);
+    }
+
+    public static void Rewrite(RunRecord record)
+    {
         System.IO.Directory.CreateDirectory(Directory);
         var path = Path.Combine(Directory, $"{record.EndedAtUtc:yyyyMMdd-HHmmss}-{record.Result.ToLowerInvariant()}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(record, JsonOptions));
-
-        _cache ??= Load();
-        _cache.Insert(0, record);
     }
 
     private static List<RunRecord> Load()
