@@ -91,6 +91,15 @@ internal static class RunCapture
             record.UnfairPlusLevel = manager.GetEffectiveUnfairPlusLevel();
         });
 
+        Capture("mod difficulty", () =>
+        {
+            var name = ModDifficulty.ActiveOverride();
+            if (name == null) return;
+            record.Difficulty = name;
+            record.DifficultyTier++;
+            record.UnfairPlusLevel = 0;
+        });
+
         Capture("map", () =>
         {
             record.Map = Localize(LevelManager.Instance.Configuration.MapManager.GetCurrentMap().MapName.Key);
