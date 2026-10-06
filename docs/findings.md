@@ -308,6 +308,21 @@ UnityPy. IL2CPP strips the MonoBehaviour typetrees, but `obj.read(check_read=Fal
 `m_Script` (to get the class name), and `get_raw_data()` after the header follows the dumped field order
 (4-byte aligned, PPtr = int32 fileID + int64 pathID). `Material` objects read fully.
 
+## Level-up card quality
+
+Each card (`SO_CardCore`) lists the qualities it exists at in `QualityIdentifiers`. A quality is an
+`SO_QualityIdentifier` asset, and `SO_QualityMaskConfig.Instance.Qualities` lists all of them. Each constellation
+deck (`ConstellationDeckData`) holds several `WeightedCardQualityList`s that draw a (card, quality) pair together.
+`ARPGEntity_Module_CardUpgradeWrapper.DrawCardFromDeck` calls `deck.TryDrawCard(out card, out quality, rerollChance)`,
+then builds the card with `card.GenerateCardValueFromPool(quality)`.
+
+**`GenerateCardValue(quality, cardCore)` is inlined** into `DrawCardFromDeck` (see the ISIL dump), so a Harmony patch
+on it never fires, even though the interop exposes it. `GenerateCardValueFromPool` is a virtual call, so patching
+the non-generic overrides on `SO_CardSkill` and `SO_CardStats` works. This is how All Legendary rewrites the quality.
+Monster cards (`SO_CardMonster`) have their own override and don't come through this path.
+
+Before patching a small private method, check the ISIL dump that its callers actually `Call` it.
+
 ## Other caps noted in passing
 
 `MAX_ACTIVE_PROJECTILES`, `MAX_LOCKED_TARGETS`, `MAX_TARGET_SLOTS`,

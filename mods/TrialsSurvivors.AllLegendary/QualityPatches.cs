@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using HarmonyLib;
 
 namespace TrialsSurvivors.AllLegendary;
@@ -111,16 +114,27 @@ internal static class QualityForcer
     }
 }
 
-[HarmonyPatch(typeof(ARPGEntity_Module_CardUpgradeWrapper), nameof(ARPGEntity_Module_CardUpgradeWrapper.GenerateCardValue))]
-internal static class GenerateCardValuePatch
+[HarmonyPatch]
+internal static class GenerateCardValueFromPoolPatch
 {
-    [HarmonyPrefix]
-    private static void Prefix(ref SO_QualityIdentifier quality, SO_CardCore cardCore)
+    private static IEnumerable<MethodBase> TargetMethods()
     {
-        if (!Plugin.Instance.Enabled.Value || cardCore == null) return;
+        foreach (var type in new[] { typeof(SO_CardSkill), typeof(SO_CardStats) })
+        {
+            var method = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+                .Single(m => m.Name == nameof(SO_CardCore.GenerateCardValueFromPool) && !m.IsGenericMethodDefinition);
+            Plugin.Instance.Log.LogInfo($"patching {type.Name}.{method.Name}");
+            yield return method;
+        }
+    }
+
+    [HarmonyPrefix]
+    private static void Prefix(SO_CardCore __instance, ref SO_QualityIdentifier quality)
+    {
+        if (!Plugin.Instance.Enabled.Value || __instance == null) return;
         try
         {
-            quality = QualityForcer.Force(quality, cardCore);
+            quality = QualityForcer.Force(quality, __instance);
         }
         catch (Exception e)
         {
