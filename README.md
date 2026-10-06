@@ -1,12 +1,17 @@
 # TSMods — modding Trials Survivors
 
-Tooling, mods and a mod manager for **Trials Survivors** (Angry Wisp). There was no modding scene
-for this game when this repo started, so it's set up to make the next mod easy
-rather than just to ship the first one.
+Tooling, mods and a mod manager for **Trials Survivors** (Angry Wisp).
 
 The game is Unity **2022.3.62f2** / **IL2CPP** x64, so there is no `Managed/`
 folder to swap DLLs in. Mods are BepInEx 6 plugins that Harmony-patch the IL2CPP
 runtime through Il2CppInterop.
+
+
+# Screens
+
+<img width="1182" height="790" alt="image" src="https://github.com/user-attachments/assets/d4ccd17c-e5d9-4d2a-a732-c3c27c73b11b" />
+<img width="1600" height="1000" alt="image" src="https://github.com/user-attachments/assets/8bc53aab-fdde-464d-bd85-0ef9d9a9258b" />
+<img width="1600" height="1000" alt="image" src="https://github.com/user-attachments/assets/31d5f3ea-f38f-4b7f-92c9-2a9225dd7090" />
 
 ## What's here
 
@@ -155,9 +160,4 @@ Naming conventions in `Assembly-CSharp`: `SO_*` ScriptableObject data assets,
 `dumps/` is gitignored — it's ~150MB of the game's own decompiled code, so it
 stays reproducible from these scripts rather than committed.
 
-# Screens
-
-<img width="2364" height="1580" alt="image" src="https://github.com/user-attachments/assets/d4ccd17c-e5d9-4d2a-a732-c3c27c73b11b" />
-<img width="3200" height="2000" alt="image" src="https://github.com/user-attachments/assets/8bc53aab-fdde-464d-bd85-0ef9d9a9258b" />
-<img width="3200" height="2000" alt="image" src="https://github.com/user-attachments/assets/31d5f3ea-f38f-4b7f-92c9-2a9225dd7090" />
 
