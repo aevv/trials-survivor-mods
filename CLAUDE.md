@@ -1,7 +1,7 @@
 # TMods
 
-BepInEx 6 IL2CPP mods for **Trials Survivors** (Unity 2022.3, IL2CPP x64). Matt's personal repo: work on
-`main` and commit locally. There's no remote yet, so don't try to push.
+BepInEx 6 IL2CPP mods for **Trials Survivors** (Unity 2022.3, IL2CPP x64). Public repo on Matt's personal
+account (`aevv/trials-survivor-mods`): work on `main`, commit, and `git push origin main`. No PRs.
 
 README.md covers setup, the dump tooling and what each mod does. docs/findings.md holds the
 reverse-engineering deep dives. Add new game knowledge there, not here.

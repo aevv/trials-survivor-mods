@@ -7,3 +7,10 @@ tools/*.exe
 tools/*.zip
 tools/Plugins/
 dumps/
+
+# editor and user-local files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
