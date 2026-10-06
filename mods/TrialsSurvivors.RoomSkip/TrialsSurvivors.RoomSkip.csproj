@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>TrialsSurvivors.RoomSkip</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InteropReference Include="UnityEngine.UI;UnityEngine.UIModule;UnityEngine.TextRenderingModule;Unity.TextMeshPro;Unity.InputSystem" />
+  </ItemGroup>
+
+</Project>

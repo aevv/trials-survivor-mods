@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>TrialsSurvivors.Impossible</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InteropReference Include="Unity.TextMeshPro;Il2CppSystem.Core;InstancedAnimationSystem" />
+  </ItemGroup>
+
+</Project>

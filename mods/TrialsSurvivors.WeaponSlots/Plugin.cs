@@ -16,6 +16,7 @@ public sealed class Plugin : BasePlugin
     internal ConfigEntry<bool> Enabled = null!;
     internal ConfigEntry<int> SlotCount = null!;
     internal ConfigEntry<Key> LastSlotKeyBinding = null!;
+    internal ConfigEntry<float> DpsMeterScale = null!;
     internal ConfigEntry<bool> Verbose = null!;
 
     internal int Slots { get; private set; } = SlotLimitPatches.VanillaSlots;
@@ -31,8 +32,15 @@ public sealed class Plugin : BasePlugin
         LastSlotKeyBinding = Config.Bind("General", "LastSlotKey", Key.Digit6,
             "Key that selects the last weapon slot, since the game only binds keys for the first five. None to disable.");
 
+        DpsMeterScale = Config.Bind("DpsMeter", "Scale", 0.75f,
+            new ConfigDescription("Size of the in-run DPS meter. 1 = the game's size. Applied when each run starts.",
+                new AcceptableValueRange<float>(0.3f, 2f)));
+
         Verbose = Config.Bind("Diagnostics", "Verbose", false,
             "Log every slot cycle, every slot key press and every skill module that gets widened.");
+
+        var harmony = new Harmony(Guid);
+        harmony.CreateClassProcessor(typeof(KikimeterInitializePatch)).Patch();
 
         if (!Enabled.Value || SlotCount.Value <= SlotLimitPatches.VanillaSlots)
         {
@@ -43,7 +51,10 @@ public sealed class Plugin : BasePlugin
         if (!ImmediatePatcher.TryApply(SlotLimitPatches.For(SlotCount.Value), Log)) return;
         Slots = SlotCount.Value;
 
-        new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
+        foreach (var type in AccessTools.GetTypesFromAssembly(typeof(Plugin).Assembly))
+        {
+            if (type != typeof(KikimeterInitializePatch)) harmony.CreateClassProcessor(type).Patch();
+        }
         AddComponent<LastSlotKey>();
         AddComponent<SpellBarAligner>();
 

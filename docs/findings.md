@@ -221,6 +221,93 @@ pointing back to it, and they're contiguous. Sizing a function from its first un
 
 TrialsSurvivors.WeaponSlots patches the immediates in memory and replaces the three modulo methods with Harmony prefixes.
 
+The DPS meter (`UI_Module_Kikimeter`) only hardcodes 5 in `Awake`, which allocates 8 arrays of length 5 (`_rows`,
+`_skillsBySlot`, `_dpsBuffer`, the index/percent buffers). Everything else loops to the array length, and
+`EnsureRows` instantiates `_rowPrefab` into `_rowsContainer` for every null `_rows[i]`. Widening the arrays in an
+`Awake` postfix is enough to get extra rows.
+
+## Room objectives and completion
+
+Each room is a `ChunkObjective` with one or more `ObjectiveController`s and a `Timer`. Score is turned into a tier by
+`ComputeTier(score)`. It returns -1 below `TierThreshold0`, then 0/1/2 as each threshold is passed
+(`TierCount = 3`, so "tier 3 met" is `CurrentTier >= 2`). Thresholds 0 and 1 can be disabled (negative).
+`OnTierChanged(objective, from, to)` fires on change.
+
+`UpdateRuntime` asks `_controllers[0].IsObjectiveCompleted(this)` each frame. Every controller type answers from
+`TimeOut` (elapsed minus `_endlessStartOffsetSeconds` >= `_effectiveTimeDuration`, or `TimeDuration`). When it's
+true it calls the private `CompleteObjective()`. That sets `_isCompleted`, closes spawn admission, exits timed
+events, pauses the timer, notifies controllers, kills remaining mobs with no loot, cleans up destructibles and
+hands out rewards. It's the only caller, and interop exposes it, so calling it directly is the same as the timer
+running out.
+
+The top-right panel is a `ChunkObjectiveUI` subclass per objective type, bound in `Setup(objective, reward,
+floorNumber, totalRooms, isEndless)` and released in `Teardown()`.
+
+## Difficulty, elites and the elite glow
+
+**Difficulty chain.** `DifficultyManager._difficulties` holds six `SO_DifficultyData` assets. Each has a `Tier`
+that `SO_EntityDifficultyScaling` uses to sum additive stat bonuses for every tier <= current. Past the last
+classic difficulty, `GetLastClassicDifficulty()`, there's Unfair+. It's an int level in
+`DATA_Saved_DifficultyProgress.currentUnfairPlusLevel`, capped by `maxUnlockedUnfairPlusLevel`, and adds
+`UnfairPlusLevelBonus` on top of the highest tier. `SetCurrentDifficulty(data)` saves the id **and resets the Unfair+
+level to 0**. `IsInUnfairPlusMode()` is `level > 0`.
+
+`DifficultySelector` (the hub pedestal) keeps `_currentDifficultyIndex` and `_currentUnfairPlusLevel`.
+`OnNextDifficulty`:
+- with level > 0, it increments up to the max unlocked level
+- otherwise it tries `TryGetNeighbourDifficulty(+1)`, which respects the current map's tier sets
+- at the last index with max > 0, it enters Unfair+ 1
+- at the true end, it does nothing
+
+`OnPrevDifficulty` mirrors it, and going back from Unfair+ 1 calls `SetCurrentDifficulty(lastClassic)`. The popup is
+`_currentDifficultyPopup` (`WorldSpaceUIDifficultyInteraction`), which has `SetDifficultyNameRaw`/`ColorRaw`/
+`DescriptionRaw`/`SetLockedStateSimple` for text that isn't localised. `OnAsClosest` re-syncs both selector fields
+from the manager and calls `RefreshDifficultyDisplay`. In-run escalation cards use
+`SetRuntimeDifficultyOverride`, not `SetCurrentDifficulty`. `GetPersistentDifficulty()` ignores the override.
+
+**Stats are additive.** `CombatEntityStatData.AddValue`/`SubstractValue` are the only mutators used by buffs. A
+"multiplicative" monster card buff is `AddValue(stat.Value * (mult - 1))`. Monster health comes from the `Health`
+attribute, whose max formula uses the `Max Health` stat (look it up by `entryName` in
+`Manager_ARPGDatabase.Instance.GetStats()`). Spawn order: `ARPGEntity_Module_DifficultyScaling.OnEnableModule`
+calls `ApplyEntry` (tier + Unfair+ bonuses), then `ActivateElite`, then `ChunkObjective.Register*` calls
+`MonsterCardManager.ApplyAllEffects`.
+
+**Elites.** There are 57 `EliteSettingsSO` assets, one per mob variant (`EliteSettings_Bat_Default`, ...). Most give
+`Max Health` x30 (some x15/x25/x35) and `Movement speed` x1.1-1.3 via `statMultipliers` (applied to the
+*template* base value, so they don't compound with tier bonuses), plus `Tenacity` +0.25. `EliteSettings_Frog_King`
+has no multipliers.
+
+The room's elite rate goes through `RoomEliteSpawnScheduler.Plan(..., eliteMultiplier, globalElitesPerSecond, ...)`.
+`ChunkObjective.HandleMobSpawning` reads `MonsterCardManager._cachedEliteChanceMultiplier` **directly** (the
+property getter is inlined), so patching `CumulativeEliteChanceMultiplier` does nothing. Patch `Plan`'s arguments
+instead.
+
+**Elite glow.** All elites use one `ARPGEntity_Module_Temp_ShaderModifierDataSO_EliteMob`, which drives the float
+`IsActiveAura` (0/1) through `ARPGEntity_Module_Temp_ShaderModifier_IGPU`. The pink colour is `_EliteFresnelColor`
+(HDR ~(0.85, 0, 4.2)) on the shared material `Shared_Color_palette_x8_Entities_Instancing` (shader
+`SimpleToonShadingPalette8x1Full`). Some mobs also have an `AuraShader` shell with `_AuraColor`. **Both are
+material-wide.** Mobs are drawn by BlackRose's InstancedAnimationSystem, and per-instance values are limited to the
+`InstancedAnimationCustomValuesTemplate`: `Template_ToonFull` has `IsActiveAura`, `ChillValue`, `IgniteValue`,
+`HitValue`, `DeathValue`, `Color_0..7` and `Emission_0..7`. So one elite can't get its own rim colour.
+`MonsterRendererManager` sets the palette groups (`SetColors`/`SetEmissions`, 8 x `Vector4`) and calls
+`RandomizeColors` from `OnEnable` and `Start`, so palette overrides reset when a mob comes out of the pool, and a
+fresh mob's `Start` wipes anything written at elite activation.
+
+What worked in practice:
+- Calling `MonsterRendererManager.SetEmissions` from a mod throws a NullReferenceException.
+- `InstancedRenderer.GetCustomShaderVectorValues()` lists each slot's `ShaderProperty` and `IdentifierIndex`, and
+  `SetCustomShaderVectorValue(value, index)` writes it. Get the renderer from
+  `ARPGEntity_Module_Temp_ShaderModifier_IGPU.InstancedRenderer`.
+- Writes to `_Color_n` show up once they're re-applied after `SetPalette`.
+- Red `_Emission_n` values (~1.5 HDR) gave **no visible glow**.
+- Palettes are `ColorPaletteSO` with `_colorsLinear`/`_emissionsLinear` (what `SetPalette` uploads). Slime emissions
+  are dim blues around 0.1-0.8, so the emission slots look like palette shading, not a glow channel.
+
+**Reading asset values.** The SOs above can be read straight out of `Trials Survivors_Data\data.unity3d` with
+UnityPy. IL2CPP strips the MonoBehaviour typetrees, but `obj.read(check_read=False)` still gives `m_Name` and
+`m_Script` (to get the class name), and `get_raw_data()` after the header follows the dumped field order
+(4-byte aligned, PPtr = int32 fileID + int64 pathID). `Material` objects read fully.
+
 ## Other caps noted in passing
 
 `MAX_ACTIVE_PROJECTILES`, `MAX_LOCKED_TARGETS`, `MAX_TARGET_SLOTS`,

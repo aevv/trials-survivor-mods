@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InteropReference Include="UnityEngine.UI;UnityEngine.UIModule;Unity.InputSystem" />
+    <InteropReference Include="UnityEngine.UI;UnityEngine.UIModule;UnityEngine.TextRenderingModule;Unity.InputSystem" />
   </ItemGroup>
 
 </Project>

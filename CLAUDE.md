@@ -79,7 +79,10 @@ Some dumped filenames start with `-`, so always pass `--` before globs to grep/l
 ## Game facts that shaped the mods
 
 - Elites are normal pooled enemies with `ARPGEntity_Module_Elite`. `ActivateElite()` flips them on. There
-  are **no per-elite affixes**. Every elite shares one `EliteSettingsSO`.
+  are **no per-elite affixes**. Each mob variant has its own `EliteSettingsSO` (57 of them), and they're
+  nearly identical: `Max Health` x30-ish, a little speed, `Tenacity`.
+- The elite glow colour is material-wide. Per-mob shader values are limited to the instancing template (aura
+  on/off, chill, ignite, hit, palette `Color_0..7`/`Emission_0..7`). See docs/findings.md.
 - Monster card buffs (`MonsterCardManager._activeEffects`) apply to **every** enemy, not per mob type.
 - Run end flows through `RunStatsTracker.PopulateRecapData`. The recap's skill list is only filled
   afterwards, in `RunRecapData.PopulateSkillRecap`.

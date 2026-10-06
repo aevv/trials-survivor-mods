@@ -273,6 +273,53 @@ instruction. The slot-cycling methods use a compiled `% 5` that can't be byte-pa
 them. The slot array is widened after `OnInitializeModule`, and a copy of the last spell bar slot is added before
 the bar initialises. See `docs/findings.md` for the full list of sites.
 
+It also widens the DPS meter to one row per slot, and scales the meter with `DpsMeter.Scale` (default `0.75`). The
+scale applies even when the slot patch is off.
+
+### TrialsSurvivors.RoomSkip
+
+Adds a SKIP button under the room objective panel in the top right. It unlocks once the room's tier 3 goal is met,
+and clicking it ends the room immediately with the rewards it would get on time-out.
+
+Config at `BepInEx\config\net.aevv.trialssurvivors.roomskip.cfg`: `Enabled`, `SkipKey` (default `None`),
+`ShowBeforeAvailable` (dimmed until tier 3, default on), `Layout.Width`/`Height`/`Gap`, and
+`Diagnostics.DumpObjectiveUi`, which logs the panel hierarchy once per session.
+
+How it works: a postfix on `ChunkObjectiveUI.Setup` adds the button, styled from the panel's own background sprite
+and title font, and placed under the panel's visible bounds. Skipping calls `ChunkObjective.CompleteObjective()`,
+the method the game calls on time-out.
+
+### TrialsSurvivors.Impossible
+
+Adds an Impossible difficulty one step past the last Unfair+ level on the hub's difficulty selector, or past Unfair
+if no Unfair+ levels are unlocked yet. It's Unfair with monsters at 3x health, 3x damage to the player, elites
+twice as common, and a red elite variant with 2x a regular elite's health and damage. The selector popup, tier text
+and in-run difficulty label all show Impossible.
+
+Config at `BepInEx\config\net.aevv.trialssurvivors.impossible.cfg`: `Enabled`, `DisplayName`, `NameColour`,
+`TierText`, `Difficulty.MonsterHealthMultiplier`/`MonsterDamageMultiplier`/`EliteRateMultiplier`,
+`RedElites.Chance` (default `0.2`)/`HealthMultiplier`/`DamageMultiplier`/`GlowColour`/`GlowIntensity`/`BodyColour`/`BodyTint`/`HidePinkAura`,
+`Diagnostics.Verbose` and `Diagnostics.ForceRedElites` (every elite is red, for checking the look).
+`State.Selected` is written by the selector.
+
+How it works: the game still thinks it's on Unfair (Unfair+ level 0). The mod stores whether Impossible is selected
+and applies everything on top. Prefixes on `DifficultySelector.OnNextDifficulty`/`OnPrevDifficulty` step in and out
+past the end of the Unfair+ chain, and postfixes on `RefreshDifficultyDisplay`, `UpdateTierText` and
+`UI_DifficultyLabel.UpdateText` relabel it. Picking any other difficulty through `DifficultyManager` deselects it.
+Monster health is `Max Health` x3 after the difficulty tier bonuses (`ARPGEntity_Module_DifficultyScaling.ApplyEntry`,
+undone in `RevertEntry`). The elite bonus that `ActivateElite` adds is scaled by the same amount, so elites are 3x
+too. Player damage scales `DamagesInfo._totalDamage` in a `TakeDamage` prefix when the target is the player, and
+the postfix restores it. Elite rate doubles `eliteMultiplier` and `globalElitesPerSecond` going into
+`RoomEliteSpawnScheduler.Plan`. Red elites turn off the pink aura, set the mob's eight palette emission slots to red and
+blend its body palette toward red, writing straight to the instanced renderer. The mob's palette comes from a
+`MonsterRendererManager.SetPalette` postfix. That postfix also repaints after the game re-rolls colours (its `Start`
+re-rolls after activation), and a component re-asserts the paint every 0.25s. The palette re-rolls when the mob is
+reused from the pool. The log
+shows the first scaled monster, elite, red elite and player hit of each run, plus totals at the end.
+
+The difficulty isn't a real `SO_DifficultyData`, so the game's own run saves, achievements and any leaderboard
+submissions see an Unfair run.
+
 ## Status
 
 The mod builds, loads cleanly under BepInEx be.788, and all three Harmony patches
