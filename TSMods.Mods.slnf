@@ -5,7 +5,8 @@
       "mods/TrialsSurvivors.EliteHealthBars/TrialsSurvivors.EliteHealthBars.csproj",
       "mods/TrialsSurvivors.RunHistory/TrialsSurvivors.RunHistory.csproj",
       "mods/TrialsSurvivors.RunHud/TrialsSurvivors.RunHud.csproj",
-      "mods/TrialsSurvivors.UncapAoE/TrialsSurvivors.UncapAoE.csproj"
+      "mods/TrialsSurvivors.UncapAoE/TrialsSurvivors.UncapAoE.csproj",
+      "mods/TrialsSurvivors.XpRates/TrialsSurvivors.XpRates.csproj"
     ]
   }
 }

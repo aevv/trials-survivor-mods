@@ -242,6 +242,20 @@ logged (`Diagnostics.LogCamera`) so you can check it's the gameplay one.
 The game's own `WorldSpaceUIBindable<T>` system isn't used. Binding to it needs a new IL2CPP
 generic instantiation, which is more trouble than an overlay canvas is worth.
 
+### TrialsSurvivors.XpRates
+
+Scales the XP you get from orbs during a run. Class/global level XP isn't touched.
+
+Config at `BepInEx\config\net.aevv.trialssurvivors.xprates.cfg`: `Enabled`, `OrbMultiplier` (default `2`),
+`PickupMultiplier` for non-orb XP collectibles (default `1`), and `Diagnostics.Verbose` to log every grant.
+
+How it works: orb pickup (`Collectible_XpOrbInstance.EndGrab`) and the XP collectible effect
+(`CollectibleEffect_XpModifier.OnCollect`) are the only callers of `ARPGEntity_Module_Level.AddXp`. Each one marks
+itself as the current source while it runs, and a prefix on `AddXp` scales `quantity` for that source. Any other
+XP grant passes through unchanged. The multiplier applies after the game's own XP bonuses. The log shows the first
+orb grant of each run (`first orb xp this run: 3 -> 6 (x2)`) and the run's totals at the end. See
+`docs/findings.md` for the XP flow.
+
 ## Status
 
 The mod builds, loads cleanly under BepInEx be.788, and all three Harmony patches

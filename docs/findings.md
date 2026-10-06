@@ -163,6 +163,27 @@ It starts at 1024 and grows, so raising the cap does **not** risk a buffer
 overrun on this path — which is the usual way a mod like this crashes a Burst
 game.
 
+## In-run XP
+
+The run's level and XP bar live on `ARPGEntity_Module_Level` (the player's module, which `UI_Module_XPBar` reads).
+Class and global level progression is separate (`ClassManager.AddXpToGlobalLevel`, and the run-end
+`LevelState_Playing.AddXp` / `AddPartialXpOnDeath`).
+
+From the ISIL dump (`task dump FORMAT=isil`, then `dumps/isil/IsilDump/Assembly-CSharp/<Type>.txt`), only two
+methods call `ARPGEntity_Module_Level.AddXp(float quantity)`:
+
+- `Collectible_XpOrbInstance.EndGrab()` calls `AddXp(_xpData.XpMultiplierFormula.GetFloat(...) * _xpValue)`.
+  The formula is where the player's "XP multiplier %" stat applies, so it's already included in `quantity`.
+  `_xpValue` starts at `XpOrbDataSO._baseXp` and grows when orbs merge (`ReceiveMerge`). An orb upgrades to
+  `_upgradeData` once it passes `_upgradeThreshold`.
+- `CollectibleEffect_XpModifier.OnCollect()`, a collectible effect with its own `_quantity` formula.
+
+Both calls are synchronous inside those methods. A prefix/finalizer pair on each caller can therefore mark the
+source, and a prefix on `AddXp` can scale `quantity` for just that source. TrialsSurvivors.XpRates does this.
+
+`SO_XpMultiplierManager` (`FinalMultiplier`, bonuses keyed by `SO_XpBonusSource`) also exists. It isn't on
+the orb path above.
+
 ## Other caps noted in passing
 
 `MAX_ACTIVE_PROJECTILES`, `MAX_LOCKED_TARGETS`, `MAX_TARGET_SLOTS`,
