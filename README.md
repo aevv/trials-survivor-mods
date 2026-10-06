@@ -17,6 +17,7 @@ runtime through Il2CppInterop.
 | `tools/install-bepinex.ps1`     | Installs/removes BepInEx 6 IL2CPP in the game folder          |
 | `docs/findings.md`              | Reverse-engineering notes — types, fields, caps, offsets      |
 | `src/TrialsSurvivors.UncapAoE/` | Mod: removes the per-skill cap on AoE targets hit             |
+| `src/TrialsSurvivors.EliteHealthBars/` | Mod: draws a health bar above each elite enemy        |
 
 ## Getting set up
 
@@ -143,6 +144,30 @@ Two things to expect:
 
 See `docs/findings.md` for the full picture, including the `ARPGSpatialQueryArgs`
 field offsets and the other caps in the codebase.
+
+### TrialsSurvivors.EliteHealthBars
+
+Draws a health bar, with a trailing "damage taken" segment, above every elite on screen.
+
+```powershell
+cd src\TrialsSurvivors.EliteHealthBars
+dotnet build -c Release -p:Deploy=true
+```
+
+Config at `BepInEx\config\net.aevv.trialssurvivors.elitehealthbars.cfg`: `Enabled`, `HideAtFullHealth`,
+bar `Width`/`Height`/`Border` (pixels at 1080p, scaled to screen height), `WorldOffset` above the
+head, `DelayedBarSpeed`, and `#RRGGBB[AA]` colours.
+
+How it works: a Harmony postfix on `ARPGEntity_Module_Elite.ActivateElite` records each elite.
+Enemies are pooled and flip between elite and normal, so instead of trusting a reset/disable hook,
+the renderer drops any tracked entry each frame that is no longer `IsElite`, is dead, or is
+inactive. Bars are plain uGUI `Image`s on the mod's own screen-space overlay canvas, positioned
+from `ARPGEntity.GetTopPosition` through the world camera. The camera comes from
+`WorldSpaceCanvasManager._worldCamera` and falls back to `Camera.main`. The chosen camera is
+logged (`Diagnostics.LogCamera`) so you can check it's the gameplay one.
+
+The game's own `WorldSpaceUIBindable<T>` system isn't used. Binding to it needs a new IL2CPP
+generic instantiation, which is more trouble than an overlay canvas is worth.
 
 ## Status
 
