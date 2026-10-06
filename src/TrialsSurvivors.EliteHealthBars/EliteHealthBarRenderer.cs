@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace TrialsSurvivors.EliteHealthBars;
@@ -12,18 +13,11 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
     private Canvas? _canvas;
     private Camera? _camera;
     private string? _loggedCameraName;
+    private int _canvasesCreated;
+    private float _nextHeartbeat;
 
     public EliteHealthBarRenderer(IntPtr ptr) : base(ptr)
     {
-    }
-
-    private void Awake()
-    {
-        var canvasObject = new GameObject("EliteHealthBarsCanvas");
-        DontDestroyOnLoad(canvasObject);
-        _canvas = canvasObject.AddComponent<Canvas>();
-        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = -100;
     }
 
     private void LateUpdate()
@@ -31,8 +25,9 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         var used = 0;
         var plugin = Plugin.Instance;
 
-        if (plugin.Enabled.Value && _canvas != null && ResolveCamera() is { } camera)
+        if (plugin.Enabled.Value)
         {
+            EnsureCanvas();
             var style = BuildStyle(plugin, Screen.height / ReferenceHeight);
 
             foreach (var elite in EliteTracker.All)
@@ -47,8 +42,10 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
 
                 if (plugin.HideAtFullHealth.Value && fraction >= 0.999f) continue;
 
-                var anchor = elite.Entity!.GetTopPosition + Vector3.up * plugin.WorldOffset.Value;
-                var screen = camera.WorldToScreenPoint(anchor);
+                var entity = elite.Entity!;
+                if (ResolveCamera(entity.gameObject.layer) is not { } camera) continue;
+
+                var screen = camera.WorldToScreenPoint(entity.GetTopPosition + Vector3.up * plugin.WorldOffset.Value);
                 if (screen.z <= 0f || !OnScreen(screen)) continue;
 
                 var bar = Rent(used++);
@@ -60,6 +57,23 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         }
 
         for (var i = used; i < _pool.Count; i++) _pool[i].Hide();
+
+        LogHeartbeat(used);
+    }
+
+    private void EnsureCanvas()
+    {
+        if (_canvas != null) return;
+
+        _pool.Clear();
+        var canvasObject = new GameObject("EliteHealthBarsCanvas");
+        DontDestroyOnLoad(canvasObject);
+        _canvas = canvasObject.AddComponent<Canvas>();
+        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _canvas.sortingOrder = -100;
+
+        _canvasesCreated++;
+        if (_canvasesCreated > 1) Plugin.Instance.Log.LogWarning($"overlay canvas was destroyed; recreated (#{_canvasesCreated})");
     }
 
     private static bool TryGetFraction(TrackedElite elite, out float fraction)
@@ -98,21 +112,41 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
     private static bool OnScreen(Vector3 screen) =>
         screen.x >= 0f && screen.x <= Screen.width && screen.y >= 0f && screen.y <= Screen.height;
 
-    private Camera? ResolveCamera()
+    private Camera? ResolveCamera(int layer)
     {
-        if (_camera == null || !_camera.isActiveAndEnabled)
+        if (!Renders(_camera, layer))
         {
-            var manager = WorldSpaceCanvasManager.ExistingInstance;
-            _camera = manager != null && manager._worldCamera != null ? manager._worldCamera : Camera.main;
+            _camera = null;
+            foreach (var camera in Camera.allCameras)
+            {
+                if (Renders(camera, layer) && (_camera == null || camera.depth > _camera.depth)) _camera = camera;
+            }
         }
 
         if (_camera != null && Plugin.Instance.LogCamera.Value && _camera.name != _loggedCameraName)
         {
             _loggedCameraName = _camera.name;
-            Plugin.Instance.Log.LogInfo($"projecting through camera '{_camera.name}'");
+            Plugin.Instance.Log.LogInfo($"projecting through camera '{_camera.name}' (renders elite layer {LayerMask.LayerToName(layer)})");
         }
 
         return _camera;
+    }
+
+    private static bool Renders(Camera? camera, int layer) =>
+        camera != null && camera.isActiveAndEnabled && (camera.cullingMask & (1 << layer)) != 0;
+
+    private void LogHeartbeat(int drawn)
+    {
+        if (!Plugin.Instance.Verbose.Value || Time.unscaledTime < _nextHeartbeat) return;
+        _nextHeartbeat = Time.unscaledTime + 5f;
+
+        var cameras = string.Join(", ", Camera.allCameras.Select(c =>
+            $"{c.name}(depth {c.depth}, enabled {c.isActiveAndEnabled}, mask 0x{c.cullingMask:X8})"));
+
+        Plugin.Instance.Log.LogInfo(
+            $"heartbeat: tracked={EliteTracker.Count} drawn={drawn} activations={EliteTracker.Activations} " +
+            $"canvas={(_canvas != null ? "ok" : "missing")} using='{(_camera != null ? _camera.name : "none")}' " +
+            $"all=[{cameras}]");
     }
 
     private HealthBar Rent(int index)

@@ -24,6 +24,7 @@ public sealed class Plugin : BasePlugin
     internal ConfigEntry<string> DelayedColour = null!;
     internal ConfigEntry<string> BackgroundColour = null!;
     internal ConfigEntry<bool> LogCamera = null!;
+    internal ConfigEntry<bool> Verbose = null!;
 
     public override void Load()
     {
@@ -56,6 +57,9 @@ public sealed class Plugin : BasePlugin
 
         LogCamera = Config.Bind("Diagnostics", "LogCamera", true,
             "Log which camera the bars are projected through whenever it changes.");
+
+        Verbose = Config.Bind("Diagnostics", "Verbose", false,
+            "Every 5 seconds, log tracked/drawn elite counts and every camera the mod could project through.");
 
         new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
 

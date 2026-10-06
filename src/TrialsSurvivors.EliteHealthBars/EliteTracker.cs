@@ -23,9 +23,12 @@ internal static class EliteTracker
     private static readonly List<nint> Stale = new();
 
     public static IEnumerable<TrackedElite> All => Tracked.Values;
+    public static int Count => Tracked.Count;
+    public static int Activations { get; private set; }
 
     public static void Track(ARPGEntity_Module_Elite module)
     {
+        Activations++;
         var key = module.Pointer;
         Tracked[key] = new TrackedElite(key, module);
     }
