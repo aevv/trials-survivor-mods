@@ -35,7 +35,7 @@ public static class Fakes
 {
     public static GameInstall Game(TempDir dir, string buildId = "100", params string[] gameMethods)
     {
-        var root = dir["game"];
+        var root = dir["steamapps/common/Trials Survivors"];
         Directory.CreateDirectory(root);
         File.WriteAllText(System.IO.Path.Combine(root, "GameAssembly.dll"), "native");
         File.WriteAllText(System.IO.Path.Combine(root, GameInstall.ProcessName + ".exe"), "exe");

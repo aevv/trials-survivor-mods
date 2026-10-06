@@ -1,21 +1,30 @@
 # Mod projects
 
-One folder per mod, `TrialsSurvivors.<Name>`, all in `TMods.sln`.
+One folder per mod, `TrialsSurvivors.<Name>`, in `TSMods.slnx` (`mods` folder) and `TSMods.Mods.slnf`.
+
+Everything shared lives in `Directory.Build.props` / `Directory.Build.targets` here: target framework, the
+BepInEx packages, `GamePath`/`InteropPath`, interop reference wiring, `CheckInterop`, `DeployToGame` and
+`StampGameBuild`. `StampGameBuild` embeds the Steam buildid, a `GameAssembly.dll` hash and the BepInEx
+version as `AssemblyMetadata("TSMods.*")`. The loader uses these to tell whether a mod was built for the
+installed game. Don't remove it.
 
 ## New mod checklist
 
-1. Copy an existing `.csproj` and rename `AssemblyName`. Keep the `GamePath`/`InteropPath` properties,
-   the `CheckInterop` target and the `DeployToGame` target as they are.
-2. Reference only the interop assemblies you use, from `$(InteropPath)` with `<Private>false</Private>`:
-   - `Assembly-CSharp`, `UnityEngine.CoreModule` and `Il2Cppmscorlib` are always needed
+1. Copy an existing `.csproj` and rename `AssemblyName`. `Version` there is the only place the plugin
+   version is set: the plugin uses `[BepInPlugin(Guid, "...", MyPluginInfo.PLUGIN_VERSION)]`.
+2. List the extra interop assemblies you use as `<InteropReference Include="A;B" />`:
+   - `Assembly-CSharp`, `UnityEngine.CoreModule` and `Il2Cppmscorlib` are already referenced
    - `UnityEngine.UI` + `UnityEngine.UIModule` for uGUI
    - `Unity.TextMeshPro` for text
    - `Unity.InputSystem` for keys
    - `Il2CppSystem.Core` whenever a signature involves `HashSet`/LINQ-ish Il2Cpp types (the compiler
      will say so with CS0012)
 3. Plugin GUID is `net.aevv.trialssurvivors.<lowercasename>`. Display name is `Trials Survivors: <Name>`.
-4. `dotnet sln TMods.sln add src/TrialsSurvivors.<Name>/TrialsSurvivors.<Name>.csproj --in-root`.
-5. Add a README section for it, then `task deploy`.
+4. `dotnet sln TSMods.slnx add mods/TrialsSurvivors.<Name>/TrialsSurvivors.<Name>.csproj --solution-folder mods`,
+   and add the same path to `TSMods.Mods.slnf` so `task deploy` picks it up.
+5. Add a README section for it, then `task deploy`. `task tsmods -- check <Name>` confirms every game
+   member and Harmony target it uses resolves against the current interop.
+6. To ship it, bump `Version` and run `task release MOD=<Name>`. Use `DRY=1` first.
 
 ## Shape of a plugin
 

@@ -1,6 +1,6 @@
-# TMods — modding Trials Survivors
+# TSMods — modding Trials Survivors
 
-Tooling and mods for **Trials Survivors** (Angry Wisp). There was no modding scene
+Tooling, mods and a mod manager for **Trials Survivors** (Angry Wisp). There was no modding scene
 for this game when this repo started, so it's set up to make the next mod easy
 rather than just to ship the first one.
 
@@ -10,14 +10,16 @@ runtime through Il2CppInterop.
 
 ## What's here
 
-| path                            | what it is                                                   |
-| ------------------------------- | ------------------------------------------------------------ |
-| `tools/dump.ps1`                | Dumps the game's IL2CPP assemblies to readable .NET DLLs      |
-| `tools/decompile.ps1`           | Turns those into a greppable per-type C# source tree          |
-| `tools/install-bepinex.ps1`     | Installs/removes BepInEx 6 IL2CPP in the game folder          |
-| `docs/findings.md`              | Reverse-engineering notes — types, fields, caps, offsets      |
-| `src/TrialsSurvivors.UncapAoE/` | Mod: removes the per-skill cap on AoE targets hit             |
-| `src/TrialsSurvivors.EliteHealthBars/` | Mod: draws a health bar above each elite enemy        |
+| path                     | what it is                                                                  |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `mods/`                  | The BepInEx plugins, one `TrialsSurvivors.<Name>/` folder each, sharing `mods/Directory.Build.*` |
+| `loader/`                | TSMods, the mod manager: `TSMods.Core`, the `tsmods` CLI, the Avalonia app and their tests |
+| `tools/dump.ps1`         | Dumps the game's IL2CPP assemblies to readable .NET DLLs                    |
+| `tools/decompile.ps1`    | Turns those into a greppable per-type C# source tree                        |
+| `tools/install-bepinex.ps1` | Installs/removes BepInEx 6 IL2CPP in the game folder                     |
+| `tools/release.ps1`      | Publishes one mod as a GitHub release the loader can install                |
+| `docs/findings.md`       | Reverse-engineering notes — types, fields, caps, offsets                    |
+| `TSMods.slnx`            | Everything. `TSMods.Mods.slnf` is just the mods, which is what `task deploy` builds |
 
 ## Getting set up
 
@@ -31,16 +33,16 @@ gh release download 2022.1.0-pre-release.21 --repo SamboyCoding/Cpp2IL `
 # 2. dump the game so you can read it
 tools\dump.ps1
 
-# 3. install the loader (needs the BepInEx IL2CPP zip in tools\, see below)
+# 3. install BepInEx (needs the IL2CPP zip in tools\, see below; the TSMods app can do this too)
 tools\install-bepinex.ps1
 
 # 4. launch the game once — BepInEx generates BepInEx\interop, which mods build against
 ```
 
-The loader zip is `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.<build>.zip` from
+The BepInEx zip is `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.<build>.zip` from
 <https://builds.bepinex.dev/projects/bepinex_be>. **It must be the IL2CPP line of
 BepInEx 6** — BepInEx 5 and the Unity.Mono builds will not load on this game.
-Keep the loader build and the `BepInEx.Unity.IL2CPP` NuGet version in step
+Keep the BepInEx build and the `BepInEx.Unity.IL2CPP` NuGet version in step
 (currently both `be.788`).
 
 To get the game back to vanilla: `tools\install-bepinex.ps1 -Uninstall`. Nothing
@@ -52,7 +54,8 @@ There's a `Taskfile.yml` for the loop you'll repeat constantly (`task` with no a
 
 | task                         | what it does                                                        |
 | ---------------------------- | ------------------------------------------------------------------- |
-| `task build`                 | build every mod (`TMods.sln`)                                       |
+| `task build`                 | build every mod and the loader (`TSMods.slnx`)                      |
+| `task test`                  | run the loader tests                                                |
 | `task deploy`                | build and copy every mod into `BepInEx\plugins`, refusing if the game is running (it locks the DLLs) |
 | `task deploy:one MOD=RunHud` | same, for one mod                                                   |
 | `task play`                  | close the game (asks first), deploy, relaunch through Steam         |
@@ -61,8 +64,49 @@ There's a `Taskfile.yml` for the loop you'll repeat constantly (`task` with no a
 | `task logs:errors`           | exceptions from Unity's `Player.log`. UI/TMP errors land here, not in the BepInEx log |
 | `task runs`                  | runs recorded by the run history mod                                |
 | `task dump` / `task decompile` | wrappers for the scripts below                                    |
+| `task loader`                | run the TSMods app                                                  |
+| `task tsmods -- <args>`      | run the `tsmods` CLI, e.g. `task tsmods -- check`                   |
+| `task loader:publish`        | single-file `TSMods.Loader.exe` and `tsmods.exe` in `dist\loader`   |
+| `task loader:screenshots`    | render the app headlessly against the real install into `dumps\screenshots` |
+| `task release MOD=RunHud`    | publish a mod as a GitHub release (`DRY=1` to preview)              |
 
 Pass `GAME_PATH=...` to any task if the game isn't in the default Steam library.
+
+## TSMods loader
+
+A Windows app (Avalonia, .NET 10) for managing the mods on an install, plus a `tsmods` CLI
+that does everything the app does. Both sit on `TSMods.Core`.
+
+- **Swap mods while the game is closed.** Toggling a mod off moves it out of `BepInEx\plugins`
+  into a library at `%LocalAppData%\TSMods\library`, so nothing is lost. Every distinct build
+  the loader sees is kept there (keyed by version and hash), including each `task deploy`, so
+  you can roll back to an earlier build from the Versions tab or `tsmods enable RunHud 0.1.0+051f`.
+  Every change is refused while the game runs.
+- **Profiles** save which mods and which builds are installed, and apply that set later.
+- **Edit configs.** BepInEx `.cfg` files describe their own types, defaults, ranges and allowed
+  values, so the Settings tab renders toggles, sliders, dropdowns and colour swatches from them.
+  Saving rewrites only the changed lines. A config only exists once the mod has loaded in game.
+- **Check mods against the installed game.** Two checks:
+  - The build stamp. `mods/Directory.Build.targets` embeds the Steam buildid, a `GameAssembly.dll`
+    hash and the BepInEx version into each mod as `AssemblyMetadata`. The loader compares
+    that with what's installed.
+  - Whether it still binds. The loader walks every game type, member and Harmony patch target the
+    mod references and resolves them against `BepInEx\interop`. A game update that renames a
+    patched method shows up as `BROKEN: missing patch target Game.Type.Method` before you launch.
+    BepInEx only regenerates interop on the first launch after an update. Until then the
+    loader says the check is pending instead of guessing.
+- **Mods on/off** flips `enabled` in `doorstop_config.ini`, so you can launch vanilla without
+  uninstalling anything. **Install BepInEx** downloads the pinned be.788 build.
+- **Get mods** lists releases on `aevv/trials-survivor-mods`. `task release MOD=<Name>`
+  builds a mod, reads its stamp and creates a `<name>-v<version>` release with the DLL attached.
+
+```powershell
+task tsmods -- status          # game, build, BepInEx, interop freshness
+task tsmods -- list            # every mod with its compatibility
+task tsmods -- check runhud    # what was checked and what's missing
+task tsmods -- config elitehealthbars ArrowSize 40
+task tsmods -- profile save everything
+```
 
 ## Reading the game
 
@@ -119,8 +163,7 @@ Removes the cap on how many enemies a single AoE can hit, so a big explosion int
 a full screen hits the whole screen.
 
 ```powershell
-cd src\TrialsSurvivors.UncapAoE
-dotnet build -c Release -p:Deploy=true     # builds and copies into BepInEx\plugins
+task deploy:one MOD=UncapAoE     # builds and copies into BepInEx\plugins
 ```
 
 Config at `BepInEx\config\net.aevv.trialssurvivors.uncapaoe.cfg` (written on first
@@ -181,8 +224,7 @@ field offsets and the other caps in the codebase.
 Draws a health bar, with a trailing "damage taken" segment, above every elite on screen.
 
 ```powershell
-cd src\TrialsSurvivors.EliteHealthBars
-dotnet build -c Release -p:Deploy=true
+task deploy:one MOD=EliteHealthBars
 ```
 
 Config at `BepInEx\config\net.aevv.trialssurvivors.elitehealthbars.cfg`: `Enabled`, `HideAtFullHealth`,

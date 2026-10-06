@@ -12,8 +12,6 @@
            Text="Interop assemblies not found at '$(InteropPath)'. Install BepInEx (tools\install-bepinex.ps1) and launch the game once, or pass -p:GamePath=..." />
   </Target>
 
-  <!-- Records which game build the mod was compiled against, so the loader can
-       tell when the installed game has moved on. Read back as AssemblyMetadata. -->
   <Target Name="StampGameBuild" BeforeTargets="GetAssemblyAttributes" Condition="Exists('$(GamePath)\GameAssembly.dll')">
     <PropertyGroup>
       <_SteamManifest>$([System.IO.Path]::GetFullPath('$(GamePath)\..\..\appmanifest_$(SteamAppId).acf'))</_SteamManifest>

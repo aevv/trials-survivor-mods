@@ -1,9 +1,15 @@
-# TMods
+# TSMods
 
-BepInEx 6 IL2CPP mods for **Trials Survivors** (Unity 2022.3, IL2CPP x64). Public repo on Matt's personal
-account (`aevv/trials-survivor-mods`): work on `main`, commit, and `git push origin main`. No PRs.
+BepInEx 6 IL2CPP mods for **Trials Survivors** (Unity 2022.3, IL2CPP x64), plus TSMods, a mod manager for
+them. Public repo on Matt's personal account (`aevv/trials-survivor-mods`): work on `main`, commit, and
+`git push origin main`. No PRs.
 
-README.md covers setup, the dump tooling and what each mod does. docs/findings.md holds the
+- `mods/` holds the plugins (net6.0, built against the game's interop). See `mods/CLAUDE.md`.
+- `loader/` holds the manager (net10.0): `TSMods.Core`, the `tsmods` CLI, the Avalonia app and tests.
+  See `loader/CLAUDE.md`.
+- `TSMods.slnx` has everything. `TSMods.Mods.slnf` filters it down to just the mods for deploy.
+
+README.md covers setup, the dump tooling, the loader and what each mod does. docs/findings.md holds the
 reverse-engineering deep dives. Add new game knowledge there, not here.
 
 ## The loop
@@ -12,6 +18,8 @@ Use the Taskfile. Don't hand-roll dotnet or grep commands for these:
 
 - `task build` / `task deploy` / `task deploy:one MOD=<Name>`. Deploy refuses while the game runs, because
   the game locks the plugin DLLs. If it refuses, ask Matt to close the game; don't kill it yourself.
+- `task test` runs the loader tests. `task tsmods -- <args>` runs the CLI (`status`, `list`, `check`, ...).
+  It's the quickest way to see what the loader thinks of the installed mods.
 - `task logs` shows mod output from `BepInEx\LogOutput.log`.
 - `task logs:errors` shows exceptions from Unity's `Player.log`. **UI/TMP exceptions only show up here.** When
   something renders wrong and the BepInEx log is clean, check this first.

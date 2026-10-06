@@ -48,6 +48,12 @@ public sealed record ModHealth(
 
 public static class ModHealthCheck
 {
+    public static ModHealth? Evaluate(ModOverview mod, GameState game, CompatibilityChecker checker)
+    {
+        var file = mod.Active?.Info.FilePath ?? mod.Versions.FirstOrDefault()?.MainFilePath;
+        return file is null || !File.Exists(file) ? null : Evaluate(ModInspector.Inspect(file), game, checker);
+    }
+
     public static ModHealth Evaluate(ModInfo mod, GameState game, CompatibilityChecker checker)
     {
         var build = CompareBuild(mod.Stamp, game);

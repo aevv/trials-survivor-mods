@@ -43,10 +43,10 @@ public static class GameLocator
     {
         if (OperatingSystem.IsWindows())
         {
-            if (Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) is string userPath)
-                yield return userPath.Replace('/', Path.DirectorySeparatorChar);
             if (Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath", null) is string machinePath)
                 yield return machinePath;
+            if (Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) is string userPath)
+                yield return userPath.Replace('/', Path.DirectorySeparatorChar);
             yield return @"C:\Program Files (x86)\Steam";
             yield break;
         }

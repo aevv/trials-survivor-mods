@@ -16,11 +16,17 @@ tasks:
     cmds:
       - dotnet build TSMods.slnx {{.BUILD_FLAGS}}
 
+  test:
+    desc: Run the loader tests
+    cmds:
+      - dotnet test --project loader/TSMods.Core.Tests
+      - dotnet test --project loader/TSMods.Loader.Tests
+
   deploy:
     desc: Build every mod and copy it into BepInEx\plugins (game must be closed)
     deps: [game:ensure-closed]
     cmds:
-      - dotnet build TSMods.slnx {{.BUILD_FLAGS}} -p:Deploy=true
+      - dotnet build TSMods.Mods.slnf {{.BUILD_FLAGS}} -p:Deploy=true
 
   deploy:one:
     desc: "Build and deploy a single mod, e.g. task deploy:one MOD=RunHud"
@@ -100,3 +106,34 @@ tasks:
     prompt: Remove BepInEx and all mods from the game folder?
     cmds:
       - '{{.PWSH}} -File tools/install-bepinex.ps1 -GamePath "{{.GAME_PATH}}" -Uninstall'
+
+  loader:
+    desc: Run the TSMods loader app
+    cmds:
+      - dotnet run --project loader/TSMods.Loader
+
+  loader:publish:
+    desc: Publish the loader as a single self-contained exe into dist\
+    cmds:
+      - dotnet publish loader/TSMods.Loader -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/loader --verbosity quiet
+      - dotnet publish loader/TSMods.Cli -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/loader --verbosity quiet
+
+  loader:screenshots:
+    desc: Render the loader against the real install into dumps\screenshots (no window, nothing changes)
+    cmds:
+      - dotnet build loader/TSMods.Loader.Tests --verbosity quiet
+      - cmd: loader/TSMods.Loader.Tests/bin/Debug/net10.0/TSMods.Loader.Tests.exe -explicit only -method "*Capture*"
+    env:
+      TSMODS_SCREENSHOTS: '{{.ROOT_DIR}}/dumps/screenshots'
+
+  tsmods:
+    desc: "Run the tsmods CLI, e.g. task tsmods -- list"
+    cmds:
+      - dotnet run --project loader/TSMods.Cli --verbosity quiet -- {{.CLI_ARGS}}
+
+  release:
+    desc: "Publish one mod as a GitHub release for the loader, e.g. task release MOD=RunHud (DRY=1 to preview)"
+    requires:
+      vars: [MOD]
+    cmds:
+      - '{{.PWSH}} -File tools/release.ps1 -Mod {{.MOD}} -GamePath "{{.GAME_PATH}}" {{if .DRY}}-DryRun{{end}}'

@@ -21,8 +21,7 @@
   </ItemGroup>
 
   <!-- Interop assemblies are generated into the game folder by BepInEx on first
-       launch, so they are a local prerequisite rather than a restorable package.
-       Projects add the extra ones they need as InteropReference items. -->
+       launch, so they are a local prerequisite rather than a restorable package. -->
   <ItemGroup>
     <InteropReference Include="Assembly-CSharp;UnityEngine.CoreModule;Il2Cppmscorlib" />
   </ItemGroup>

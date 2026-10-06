@@ -148,7 +148,7 @@ namespace TSMods.Cli
             manager.SyncLibrary();
             var state = GameState.Read(manager.Install);
             using var checker = CompatibilityChecker.For(manager.Install);
-            var rows = manager.Overview().Select(m => (Mod: m, Health: Health(m, state, checker))).ToList();
+            var rows = manager.Overview().Select(m => (Mod: m, Health: ModHealthCheck.Evaluate(m, state, checker))).ToList();
 
             if (json)
             {
@@ -185,7 +185,7 @@ namespace TSMods.Cli
             var mods = query is null ? manager.Overview() : [manager.Get(query)];
             foreach (var mod in mods)
             {
-                var health = Health(mod, state, checker);
+                var health = ModHealthCheck.Evaluate(mod, state, checker);
                 Console.WriteLine($"{mod.Name} {mod.Version}: {health?.Level.ToString().ToLowerInvariant() ?? "-"} - {health?.Summary ?? "no file to check"}");
                 if (health is null) continue;
                 foreach (var detail in health.Details()) Console.WriteLine($"    {detail}");
@@ -279,12 +279,6 @@ namespace TSMods.Cli
             var file = await releases.DownloadAsync(release, paths.Downloads);
             var entry = manager.ImportAndEnable(file, $"github:{release.Tag}");
             Console.WriteLine($"installed {entry.Name} {entry.Id}");
-        }
-
-        private static ModHealth? Health(ModOverview mod, GameState state, CompatibilityChecker checker)
-        {
-            var file = mod.Active?.Info.FilePath ?? mod.Versions.FirstOrDefault()?.MainFilePath;
-            return file is null || !File.Exists(file) ? null : ModHealthCheck.Evaluate(ModInspector.Inspect(file), state, checker);
         }
     }
 

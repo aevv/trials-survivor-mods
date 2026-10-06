@@ -1,0 +1,351 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TSMods.Loader.ViewModels"
+        x:Class="TSMods.Loader.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="TSMods - Trials Survivors mod manager"
+        Width="1180" Height="760" MinWidth="940" MinHeight="600"
+        Background="#16181C">
+
+  <Window.DataTemplates>
+
+    <DataTemplate DataType="vm:BoolSettingViewModel">
+      <ToggleSwitch IsChecked="{Binding Value}" OnContent="" OffContent="" HorizontalAlignment="Left" />
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:NumberSettingViewModel">
+      <Grid ColumnDefinitions="*,8,76">
+        <Slider Grid.Column="0" IsVisible="{Binding HasRange}" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}"
+                Value="{Binding SliderValue}" SmallChange="{Binding SmallStep}" IsSnapToTickEnabled="{Binding IsInteger}"
+                TickFrequency="{Binding SmallStep}" VerticalAlignment="Center" ToolTip.Tip="{Binding RangeLabel}" />
+        <TextBox Grid.Column="2" Text="{Binding Text}" HorizontalContentAlignment="Right" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:ChoiceSettingViewModel">
+      <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" HorizontalAlignment="Stretch" MaxDropDownHeight="320" />
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:ColourSettingViewModel">
+      <Grid ColumnDefinitions="28,8,*">
+        <Border Grid.Column="0" Width="28" Height="28" CornerRadius="4" BorderBrush="#555" BorderThickness="1" Background="{Binding Swatch}" />
+        <TextBox Grid.Column="2" Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas, monospace" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:TextSettingViewModel">
+      <TextBox Text="{Binding Text}" PlaceholderText="{Binding Hint}" />
+    </DataTemplate>
+
+  </Window.DataTemplates>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16,12,16,8">
+
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+      <StackPanel Spacing="2">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Classes="h1" Text="Trials Survivors" />
+          <Border Classes="badge ok" IsVisible="{Binding !IsGameRunning}">
+            <TextBlock Text="NOT RUNNING" />
+          </Border>
+          <Border Classes="badge warn" IsVisible="{Binding IsGameRunning}">
+            <TextBlock Text="RUNNING" />
+          </Border>
+        </StackPanel>
+        <TextBlock Classes="muted" Text="{Binding GameDetails}" />
+        <TextBlock Classes="muted mono" Text="{Binding GamePath}" FontSize="11" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+        <Button Content="{Binding BepInExToggleText}" Command="{Binding ToggleBepInExCommand}"
+                IsVisible="{Binding BepInExInstalled}" IsEnabled="{Binding CanChange}" />
+        <Button Content="Folders">
+          <Button.Flyout>
+            <MenuFlyout>
+              <MenuItem Header="Plugins" Command="{Binding OpenFolderCommand}" CommandParameter="plugins" />
+              <MenuItem Header="Configs" Command="{Binding OpenFolderCommand}" CommandParameter="config" />
+              <MenuItem Header="BepInEx (logs)" Command="{Binding OpenFolderCommand}" CommandParameter="log" />
+              <MenuItem Header="Game" Command="{Binding OpenFolderCommand}" CommandParameter="game" />
+              <MenuItem Header="TSMods library" Command="{Binding OpenFolderCommand}" CommandParameter="library" />
+              <Separator />
+              <MenuItem Header="Locate game..." Command="{Binding LocateGameCommand}" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+        <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+        <Button Content="Launch game" Classes="accent" Command="{Binding LaunchGameCommand}"
+                IsEnabled="{Binding !IsGameRunning}" IsVisible="{Binding GameFound}" />
+      </StackPanel>
+    </Grid>
+
+    <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,10">
+      <Border Classes="banner error" IsVisible="{Binding !GameFound}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="Couldn't find Trials Survivors through Steam. Point TSMods at the game folder." />
+          <Button Grid.Column="1" Content="Locate game" Command="{Binding LocateGameCommand}" />
+        </Grid>
+      </Border>
+      <Border Classes="banner" IsVisible="{Binding IsGameRunning}">
+        <TextBlock TextWrapping="Wrap" Text="The game is running. Mods and settings are locked until it closes, because the game holds the plugin files and BepInEx rewrites configs." />
+      </Border>
+      <Border Classes="banner error" IsVisible="{Binding ShowInstallBepInEx}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="BepInEx isn't installed, so no mods will load." />
+          <Button Grid.Column="1" Content="Install BepInEx" Command="{Binding InstallBepInExCommand}" IsEnabled="{Binding CanChange}" />
+        </Grid>
+      </Border>
+      <Border Classes="banner" IsVisible="{Binding ShowModsOff}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="Mods are turned off. The game will start vanilla." />
+          <Button Grid.Column="1" Content="Turn mods on" Command="{Binding ToggleBepInExCommand}" IsEnabled="{Binding CanChange}" />
+        </Grid>
+      </Border>
+      <Border Classes="banner" IsVisible="{Binding InteropStale}">
+        <TextBlock TextWrapping="Wrap" Text="The game has updated since BepInEx last generated its interop assemblies. Launch the game once so mods can be checked against the new build." />
+      </Border>
+      <Border Classes="banner" IsVisible="{Binding InteropMissing}">
+        <TextBlock TextWrapping="Wrap" Text="BepInEx hasn't generated interop assemblies yet. Launch the game once so mods can be checked." />
+      </Border>
+    </StackPanel>
+
+    <Grid Grid.Row="2" ColumnDefinitions="330,12,*">
+
+      <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto" Margin="2,0,2,6">
+          <TextBlock Classes="h2" Text="MODS" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+            <Button Content="Add file..." Command="{Binding ImportModCommand}" IsEnabled="{Binding CanChange}" Padding="10,4" />
+            <Button Content="Get mods" Command="{Binding ShowReleasesCommand}" IsEnabled="{Binding GameFound}" Padding="10,4" />
+          </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" Classes="panel">
+          <Grid>
+            <ListBox ItemsSource="{Binding Mods}" SelectedItem="{Binding SelectedMod}" Background="Transparent">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:ModItemViewModel">
+                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                    <ToggleSwitch IsChecked="{Binding IsEnabled}" OnContent="" OffContent="" MinWidth="0"
+                                  IsEnabled="{Binding Owner.CanChange}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                      <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Classes="muted" FontSize="12" TextTrimming="CharacterEllipsis">
+                        <Run Text="{Binding VersionLabel}" />
+                        <Run Text="  " />
+                        <Run Text="{Binding HealthSummary}" />
+                      </TextBlock>
+                    </StackPanel>
+                    <Border Grid.Column="2" Classes="badge" Classes.ok="{Binding IsOk}" Classes.warn="{Binding IsWarn}" Classes.error="{Binding IsError}" Margin="6,0,0,0">
+                      <TextBlock Text="{Binding HealthText}" />
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock IsVisible="{Binding !HasMods}" Classes="muted" TextWrapping="Wrap" Margin="16" VerticalAlignment="Center" TextAlignment="Center"
+                       Text="No mods yet. Add a DLL, get one from GitHub, or deploy from the repo with task deploy." />
+          </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="2" Classes="h2" Text="PROFILES" Margin="2,12,2,6" />
+        <Border Grid.Row="3" Classes="panel" Padding="10">
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,6,Auto,6,Auto">
+              <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" PlaceholderText="Pick a profile" HorizontalAlignment="Stretch" />
+              <Button Grid.Column="2" Content="Apply" Command="{Binding ApplyProfileCommand}" IsEnabled="{Binding CanChange}" />
+              <Button Grid.Column="4" Content="Delete" Command="{Binding DeleteProfileCommand}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,6,Auto">
+              <TextBox Text="{Binding NewProfileName}" PlaceholderText="Save current mods as..." />
+              <Button Grid.Column="2" Content="Save" Command="{Binding SaveProfileCommand}" IsEnabled="{Binding GameFound}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Grid.Column="2" Classes="panel" Padding="18,14" IsVisible="{Binding !ShowingReleases}">
+        <Grid>
+          <TextBlock Classes="muted" Text="Select a mod" HorizontalAlignment="Center" VerticalAlignment="Center"
+                     IsVisible="{Binding SelectedMod, Converter={x:Static ObjectConverters.IsNull}}" />
+          <ContentControl Content="{Binding SelectedMod}">
+            <ContentControl.ContentTemplate>
+              <DataTemplate DataType="vm:ModItemViewModel">
+                <Grid RowDefinitions="Auto,*">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <StackPanel Spacing="2">
+                      <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Classes="h1" Text="{Binding DisplayName}" />
+                        <TextBlock Classes="muted" Text="{Binding VersionLabel}" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                      </StackPanel>
+                      <TextBlock Classes="muted mono" Text="{Binding Guid}" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsEnabled}" OnContent="Enabled" OffContent="Disabled"
+                                  IsEnabled="{Binding Owner.CanChange}" VerticalAlignment="Center" />
+                  </Grid>
+
+                  <TabControl Grid.Row="1" Padding="0,8,0,0">
+
+                    <TabItem Header="Overview">
+                      <ScrollViewer>
+                        <StackPanel Spacing="14" Margin="0,4,8,0">
+                          <Border Classes="banner error" IsVisible="{Binding MissingDependencies, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding MissingDependencies}" TextWrapping="Wrap" />
+                          </Border>
+                          <StackPanel Spacing="6">
+                            <TextBlock Classes="h2" Text="COMPATIBILITY" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <Border Classes="badge" Classes.ok="{Binding IsOk}" Classes.warn="{Binding IsWarn}" Classes.error="{Binding IsError}">
+                                <TextBlock Text="{Binding HealthText}" />
+                              </Border>
+                              <TextBlock Text="{Binding HealthSummary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding HealthDetails}" Margin="2,2,0,0">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                  <TextBlock Classes="muted" Text="{Binding}" TextWrapping="Wrap" Margin="0,1" />
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                          <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto" >
+                            <TextBlock Grid.Row="0" Classes="muted" Text="Built for" Margin="0,2" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BuiltFor}" Margin="0,2" />
+                            <TextBlock Grid.Row="1" Classes="muted" Text="Stored as" Margin="0,2" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="mono" Text="{Binding EntryId}" Margin="0,2" />
+                            <TextBlock Grid.Row="2" Classes="muted" Text="File" Margin="0,2" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Classes="mono" Text="{Binding FilePath}" TextWrapping="Wrap" Margin="0,2" />
+                            <TextBlock Grid.Row="3" Classes="muted" Text="Release tag" Margin="0,2" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Classes="mono" Text="{Binding ReleaseTag}" Margin="0,2" />
+                          </Grid>
+                        </StackPanel>
+                      </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Settings">
+                      <Grid RowDefinitions="Auto,*" DataContext="{Binding Config}" x:DataType="vm:ConfigEditorViewModel">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,8,10">
+                          <TextBlock Classes="muted mono" Text="{Binding Path}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Classes="status error" Text="{Binding Error}" VerticalAlignment="Center" />
+                            <Button Content="Revert" Command="{Binding RevertCommand}" />
+                            <Button Content="Save" Classes="accent" Command="{Binding SaveCommand}" />
+                          </StackPanel>
+                        </Grid>
+                        <TextBlock Grid.Row="1" Classes="muted" Text="{Binding EmptyMessage}" TextWrapping="Wrap" IsVisible="{Binding !HasConfig}" />
+                        <ScrollViewer Grid.Row="1" IsVisible="{Binding HasConfig}">
+                          <ItemsControl ItemsSource="{Binding Sections}" Margin="0,0,12,0">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate DataType="vm:ConfigSectionViewModel">
+                                <StackPanel Spacing="2" Margin="0,0,0,14">
+                                  <TextBlock Classes="h2" Text="{Binding Name}" Margin="0,0,0,4" />
+                                  <ItemsControl ItemsSource="{Binding Settings}">
+                                    <ItemsControl.ItemTemplate>
+                                      <DataTemplate DataType="vm:SettingViewModel">
+                                        <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                                          <Grid ColumnDefinitions="*,16,280,8,Auto">
+                                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Key}" FontWeight="SemiBold" />
+                                                <TextBlock Text="edited" Foreground="{StaticResource WarnBrush}" FontSize="11" VerticalAlignment="Center" IsVisible="{Binding IsModified}" />
+                                              </StackPanel>
+                                              <TextBlock Classes="muted" FontSize="12" Text="{Binding Description}" TextWrapping="Wrap" IsVisible="{Binding HasDescription}" />
+                                              <TextBlock Classes="status error" FontSize="12" Text="{Binding Error}" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                            </StackPanel>
+                                            <ContentControl Grid.Column="2" Content="{Binding}" VerticalAlignment="Center" />
+                                            <Button Grid.Column="4" Content="Reset" Command="{Binding ResetToDefaultCommand}" IsEnabled="{Binding IsNonDefault}"
+                                                    ToolTip.Tip="{Binding DefaultLabel}" Padding="8,4" VerticalAlignment="Center" />
+                                          </Grid>
+                                        </Border>
+                                      </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                  </ItemsControl>
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </ScrollViewer>
+                      </Grid>
+                    </TabItem>
+
+                    <TabItem Header="Versions">
+                      <ScrollViewer>
+                        <StackPanel Spacing="6" Margin="0,4,8,0">
+                          <TextBlock Classes="muted" TextWrapping="Wrap"
+                                     Text="Every build TSMods has seen is kept here, so you can roll back. Builds from the repo show up after task deploy." />
+                          <ItemsControl ItemsSource="{Binding Versions}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate DataType="vm:VersionViewModel">
+                                <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                                  <Grid ColumnDefinitions="170,140,*,Auto">
+                                    <TextBlock Classes="mono" Text="{Binding Id}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Classes="muted" Text="{Binding Imported}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Classes="muted" Text="{Binding Source}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                                      <Border Classes="badge ok" IsVisible="{Binding IsActive}">
+                                        <TextBlock Text="INSTALLED" />
+                                      </Border>
+                                      <Button Content="Use" Command="{Binding UseCommand}" IsVisible="{Binding IsInactive}" IsEnabled="{Binding Owner.CanChange}" Padding="10,4" />
+                                      <Button Content="Delete" Command="{Binding DeleteCommand}" IsVisible="{Binding IsInactive}" Padding="10,4" />
+                                    </StackPanel>
+                                  </Grid>
+                                </Border>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </ScrollViewer>
+                    </TabItem>
+
+                  </TabControl>
+                </Grid>
+              </DataTemplate>
+            </ContentControl.ContentTemplate>
+          </ContentControl>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="2" Classes="panel" Padding="18,14" IsVisible="{Binding ShowingReleases}">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h1" Text="Get mods" />
+              <TextBlock Classes="muted mono" Text="{Binding ReleaseRepo}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="Back" Command="{Binding HideReleasesCommand}" VerticalAlignment="Top" />
+          </Grid>
+          <StackPanel Grid.Row="1" Margin="0,10">
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding ReleasesLoading}" />
+            <TextBlock Classes="muted" Text="{Binding ReleasesMessage}" TextWrapping="Wrap" />
+          </StackPanel>
+          <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding RemoteMods}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:RemoteModViewModel">
+                  <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="{Binding ModName}" FontWeight="SemiBold" />
+                          <TextBlock Classes="muted" Text="{Binding Version}" />
+                          <TextBlock Classes="muted" Text="{Binding Published}" />
+                        </StackPanel>
+                        <TextBlock Classes="muted" FontSize="12" Text="{Binding LocalState}" />
+                        <TextBlock Classes="muted" FontSize="12" Text="{Binding Notes}" TextWrapping="Wrap" MaxHeight="60" IsVisible="{Binding HasNotes}" />
+                      </StackPanel>
+                      <Button Grid.Column="1" Content="Install" Command="{Binding InstallCommand}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="2,8,2,0">
+      <TextBlock Classes="status" Classes.error="{Binding StatusIsError}" Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis" />
+      <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="120" IsVisible="{Binding IsBusy}" />
+    </Grid>
+  </Grid>
+</Window>
