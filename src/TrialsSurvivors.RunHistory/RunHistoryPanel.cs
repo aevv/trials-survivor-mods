@@ -87,7 +87,7 @@ public sealed class RunHistoryPanel : MonoBehaviour
 
         var title = UiFactory.Rect("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(32f, -72f), new Vector2(-32f, -16f));
         UiFactory.Text(title, font, 40f, TextAlignmentOptions.MidlineLeft).text =
-            $"<b>Run history</b>  <size=24><color=#8A8F98>{Plugin.Instance.ToggleKey.Value} / Esc to close · ↑↓ select · ←→ page</color></size>";
+            $"<b>Run history</b>  <size=24><color=#8A8F98>{Plugin.Instance.ToggleKey.Value} / Esc to close  |  Up/Down select  |  Left/Right page</color></size>";
 
         var list = UiFactory.Rect("List", panel, Vector2.zero, new Vector2(0f, 1f), new Vector2(32f, 72f), new Vector2(552f, -88f));
         for (var i = 0; i < RowsPerPage; i++)
@@ -121,7 +121,7 @@ public sealed class RunHistoryPanel : MonoBehaviour
     private void Render(IReadOnlyList<RunRecord> runs)
     {
         var pages = Math.Max(1, (runs.Count + RowsPerPage - 1) / RowsPerPage);
-        _pageLabel!.text = runs.Count == 0 ? "" : $"<color=#8A8F98>page {_page + 1} of {pages} · {runs.Count} runs</color>";
+        _pageLabel!.text = runs.Count == 0 ? "" : $"<color=#8A8F98>page {_page + 1} of {pages}  |  {runs.Count} runs</color>";
 
         for (var i = 0; i < _rows.Count; i++)
         {
@@ -151,7 +151,7 @@ public sealed class RunHistoryPanel : MonoBehaviour
 
         sb.Append($"<size=44><b><color={RunFormat.ResultColour(run.Result)}>{RunFormat.ResultLabel(run.Result)}</color></b></size>")
           .Append($"   <color=#8A8F98>{RunFormat.When(run.EndedAtUtc)}</color>\n")
-          .Append($"<color=#C9CDD4>{run.ClassName} · {difficulty} · {run.Map}</color>\n\n");
+          .Append($"<color=#C9CDD4>{run.ClassName}  |  {difficulty}  |  {run.Map}</color>\n\n");
 
         Stats(sb,
             ("Duration", RunFormat.Duration(run.DurationSeconds)),

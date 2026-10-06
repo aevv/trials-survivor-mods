@@ -191,7 +191,11 @@ internal static class Ui
     public static TextMeshProUGUI Text(GameObject go, TMP_FontAsset? font, TextAlignmentOptions alignment)
     {
         var text = go.AddComponent<TextMeshProUGUI>();
-        if (font != null) text.font = font;
+        if (font != null)
+        {
+            text.font = font;
+            text.fontSharedMaterial = font.material;
+        }
         text.alignment = alignment;
         text.raycastTarget = false;
         text.enableWordWrapping = false;

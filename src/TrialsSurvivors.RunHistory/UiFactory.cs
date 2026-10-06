@@ -35,7 +35,11 @@ internal static class UiFactory
     public static TextMeshProUGUI Text(RectTransform rect, TMP_FontAsset? font, float size, TextAlignmentOptions alignment)
     {
         var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
-        if (font != null) text.font = font;
+        if (font != null)
+        {
+            text.font = font;
+            text.fontSharedMaterial = font.material;
+        }
         text.fontSize = size;
         text.alignment = alignment;
         text.richText = true;

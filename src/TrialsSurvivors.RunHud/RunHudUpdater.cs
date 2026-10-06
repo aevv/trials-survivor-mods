@@ -74,7 +74,7 @@ public sealed class RunHudUpdater : MonoBehaviour
 
     private void Append(string part)
     {
-        if (_text.Length > 0) _text.Append("<color=#FFFFFF80>  ·  </color>");
+        if (_text.Length > 0) _text.Append("<color=#FFFFFF80>   |   </color>");
         _text.Append(part);
     }
 
