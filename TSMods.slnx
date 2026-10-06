@@ -7,6 +7,7 @@
     <Project Path="loader/TSMods.Loader/TSMods.Loader.csproj" />
   </Folder>
   <Folder Name="/mods/">
+    <Project Path="mods/TrialsSurvivors.AllLegendary/TrialsSurvivors.AllLegendary.csproj" />
     <Project Path="mods/TrialsSurvivors.EliteHealthBars/TrialsSurvivors.EliteHealthBars.csproj" />
     <Project Path="mods/TrialsSurvivors.Impossible/TrialsSurvivors.Impossible.csproj" />
     <Project Path="mods/TrialsSurvivors.RoomSkip/TrialsSurvivors.RoomSkip.csproj" />

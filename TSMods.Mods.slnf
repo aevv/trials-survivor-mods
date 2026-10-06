@@ -2,6 +2,7 @@
   "solution": {
     "path": "TSMods.slnx",
     "projects": [
+      "mods/TrialsSurvivors.AllLegendary/TrialsSurvivors.AllLegendary.csproj",
       "mods/TrialsSurvivors.EliteHealthBars/TrialsSurvivors.EliteHealthBars.csproj",
       "mods/TrialsSurvivors.Impossible/TrialsSurvivors.Impossible.csproj",
       "mods/TrialsSurvivors.RoomSkip/TrialsSurvivors.RoomSkip.csproj",

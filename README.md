@@ -44,6 +44,7 @@ the commands.
 | **XP Rates**           | Multiplies the XP you get from orbs during a run (2x by default) |
 | **Weapon Slots**       | Raises the weapon slot limit from 5 to 6, or up to 8, and widens the DPS meter to match |
 | **Room Skip**          | A SKIP button under the room objective that ends the room once its tier 3 goal is met, with full rewards |
+| **Oops! All Legendary!** | Every level-up card comes up legendary. Cards with no legendary tier get their best one instead |
 | **Impossible**         | A new difficulty past Unfair+: tougher monsters, more elites, and rare red elites that are tougher still |
 
 Every mod's settings can be changed in the app's Settings tab.
