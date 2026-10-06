@@ -18,7 +18,7 @@ public static class ModInspector
         try
         {
             using var module = ModuleDefinition.ReadModule(new MemoryStream(bytes));
-            return new ModInfo(Path.GetFullPath(path), hash, ReadPlugin(module), ReadStamp(module), ReadDependencies(module));
+            return new ModInfo(Path.GetFullPath(path), hash, ReadPlugin(module), ReadStamp(module), ReadDependencies(module), ReadDescription(module));
         }
         catch (BadImageFormatException)
         {
@@ -46,6 +46,12 @@ public static class ModInspector
                 a.ConstructorArguments.Count > 1 && a.ConstructorArguments[1].Value is int flags && (flags & SoftDependencyFlag) != 0))
             .DistinctBy(d => d.Guid)
             .ToList();
+
+    private static string? ReadDescription(ModuleDefinition module) =>
+        module.Assembly.CustomAttributes
+            .Where(a => a.AttributeType.FullName == typeof(System.Reflection.AssemblyDescriptionAttribute).FullName && a.ConstructorArguments.Count == 1)
+            .Select(a => a.ConstructorArguments[0].Value as string)
+            .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d));
 
     private static BuildStamp? ReadStamp(ModuleDefinition module)
     {

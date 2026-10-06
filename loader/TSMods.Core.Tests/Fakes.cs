@@ -29,7 +29,8 @@ public sealed record FakeMod(
     string[]? MissingTypes = null,
     (string Type, string Method)[]? Patches = null,
     string? GameBuildId = null,
-    string? Salt = null);
+    string? Salt = null,
+    string? Description = null);
 
 public static class Fakes
 {
@@ -127,6 +128,13 @@ public static class Fakes
                 stamp.ConstructorArguments.Add(new CustomAttributeArgument(module.TypeSystem.String, value));
                 assembly.CustomAttributes.Add(stamp);
             }
+        }
+
+        if (spec.Description is not null)
+        {
+            var description = new CustomAttribute(module.ImportReference(typeof(AssemblyDescriptionAttribute).GetConstructor([typeof(string)])));
+            description.ConstructorArguments.Add(new CustomAttributeArgument(module.TypeSystem.String, spec.Description));
+            assembly.CustomAttributes.Add(description);
         }
 
         assembly.Write(path);

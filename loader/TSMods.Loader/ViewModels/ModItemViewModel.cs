@@ -99,16 +99,35 @@ public sealed partial class VersionViewModel(ModItemViewModel mod, TSMods.Core.L
 
 public sealed partial class RemoteModViewModel(MainViewModel owner, RemoteMod release, ModItemViewModel? local) : ObservableObject
 {
+    private readonly VersionViewModel? _stored = local?.Versions.FirstOrDefault(v => ModVersions.Same(v.Version, release.Version));
+
     public RemoteMod Release => release;
     public string ModName => release.ModName;
     public string Version => $"v{release.Version}";
     public string Published => release.PublishedAt.LocalDateTime.ToString("yyyy-MM-dd");
     public string Notes => release.Notes.Trim();
     public bool HasNotes => Notes.Length > 0;
-    public string LocalState => local is null
-        ? "not installed"
-        : local.IsEnabled && local.Version == release.Version ? "installed" : $"you have v{local.Version}{(local.IsEnabled ? "" : " (disabled)")}";
+    public bool IsInstalled => _stored is { IsActive: true } && local!.IsEnabled;
+    public bool CanInstall => !IsInstalled;
+    public string InstallText => _stored is null ? "Install" : "Use";
+    public string LocalState => (local, _stored) switch
+    {
+        (null, _) => "not installed",
+        (_, { IsActive: true }) when local.IsEnabled => "installed",
+        (_, not null) => $"in your library, you're using v{local.Version}{(local.IsEnabled ? "" : " (disabled)")}",
+        _ => $"you have v{local.Version}{(local.IsEnabled ? "" : " (disabled)")}",
+    };
 
     [RelayCommand]
-    private Task InstallAsync() => owner.InstallReleaseAsync(this);
+    private Task InstallAsync() => _stored is { } stored ? owner.UseStoredReleaseAsync(local!, stored) : owner.InstallReleaseAsync(this);
+}
+
+public static class ModVersions
+{
+    public static bool Same(string a, string b) =>
+        System.Version.TryParse(a, out var x) && System.Version.TryParse(b, out var y)
+            ? Normalise(x) == Normalise(y)
+            : string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    private static System.Version Normalise(System.Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0), Math.Max(v.Revision, 0));
 }

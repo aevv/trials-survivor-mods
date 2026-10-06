@@ -332,7 +332,7 @@
                         <TextBlock Classes="muted" FontSize="12" Text="{Binding LocalState}" />
                         <TextBlock Classes="muted" FontSize="12" Text="{Binding Notes}" TextWrapping="Wrap" MaxHeight="60" IsVisible="{Binding HasNotes}" />
                       </StackPanel>
-                      <Button Grid.Column="1" Content="Install" Command="{Binding InstallCommand}" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="{Binding InstallText}" Command="{Binding InstallCommand}" IsVisible="{Binding CanInstall}" VerticalAlignment="Center" />
                     </Grid>
                   </Border>
                 </DataTemplate>

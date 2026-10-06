@@ -6,6 +6,8 @@ Publishes mods as GitHub releases that the TSMods loader can install.
 .DESCRIPTION
 Builds a mod in Release, reads its plugin version and game build stamp with the
 tsmods CLI, then creates a release tagged <mod>-v<version> with the DLL attached.
+The release notes open with the mod's <Description> from its csproj, which the
+loader shows under each mod in "Get mods".
 The loader's "Get mods" view lists these releases.
 
 With -Mod, refuses if the tag exists, so bump <Version> in the mod's csproj first.
@@ -72,8 +74,10 @@ function Publish-Mod([string]$name) {
     $stampedTag = "$($name.ToLowerInvariant())-v$version"
     if ($stampedTag -ne $tag) { throw "$name's plugin reports $version but its csproj says otherwise ($tag)" }
 
+    if (-not $info.description) { throw "$name has no <Description> in $project, add one before releasing" }
+
     $notes = @"
-$($info.plugin.name) $version
+$($info.description)
 
 Built for Trials Survivors build $($info.stamp.gameBuildId) with BepInEx $($info.stamp.bepInExVersion).
 Install with the TSMods loader (Get mods), or drop the DLL into BepInEx\plugins.

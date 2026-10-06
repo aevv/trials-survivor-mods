@@ -11,7 +11,8 @@ public sealed record ModInfo(
     string Sha256,
     PluginInfo? Plugin,
     BuildStamp? Stamp,
-    IReadOnlyList<ModDependency> Dependencies)
+    IReadOnlyList<ModDependency> Dependencies,
+    string? Description = null)
 {
     public string FileName => Path.GetFileName(FilePath);
     public bool IsPlugin => Plugin is not null;

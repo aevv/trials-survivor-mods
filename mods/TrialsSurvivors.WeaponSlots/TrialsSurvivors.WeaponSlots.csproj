@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.WeaponSlots</AssemblyName>
     <Version>0.1.0</Version>
+    <Description>Raises the weapon slot limit from 5 to 6, or up to 8, and widens the DPS meter to match.</Description>
   </PropertyGroup>
 
   <ItemGroup>

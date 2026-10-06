@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.UncapAoE</AssemblyName>
     <Version>0.2.0</Version>
+    <Description>Removes the cap on how many enemies one area attack can hit, so a big explosion hits the whole screen. Skills that fire a projectile per target stay capped so they don't flood the screen.</Description>
   </PropertyGroup>
 
   <ItemGroup>

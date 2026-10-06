@@ -46,11 +46,12 @@ public class CompatibilityTests
     public void Inspector_reads_plugin_and_stamp()
     {
         using var dir = new TempDir();
-        var mod = ModInspector.Inspect(Fakes.WriteMod(dir["mod.dll"], new FakeMod(Guid: "a.b", Name: "AB", Version: "2.1.0", GameBuildId: "555")));
+        var mod = ModInspector.Inspect(Fakes.WriteMod(dir["mod.dll"], new FakeMod(Guid: "a.b", Name: "AB", Version: "2.1.0", GameBuildId: "555", Description: "Does a thing")));
 
         Assert.Equal(new PluginInfo("a.b", "AB", "2.1.0"), mod.Plugin);
         Assert.Equal("555", mod.Stamp?.GameBuildId);
         Assert.Equal("6.0.0-be.788", mod.Stamp?.BepInExVersion);
+        Assert.Equal("Does a thing", mod.Description);
     }
 
     [Fact]

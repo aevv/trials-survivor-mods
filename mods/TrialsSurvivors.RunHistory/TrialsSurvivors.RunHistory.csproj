@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.RunHistory</AssemblyName>
     <Version>0.1.0</Version>
+    <Description>Saves every run. Press F6 in the hub to browse past runs with their difficulty, map, stats and build.</Description>
   </PropertyGroup>
 
   <ItemGroup>

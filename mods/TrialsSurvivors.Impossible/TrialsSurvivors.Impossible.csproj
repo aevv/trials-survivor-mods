@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.Impossible</AssemblyName>
     <Version>0.1.0</Version>
+    <Description>A new difficulty past Unfair+: tougher monsters, more elites, and rare red elites that are tougher still.</Description>
   </PropertyGroup>
 
   <ItemGroup>

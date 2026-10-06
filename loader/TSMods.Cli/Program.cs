@@ -295,6 +295,7 @@ namespace TSMods.Cli
                 $"file      {mod.FilePath}",
                 $"sha256    {mod.Sha256}",
                 mod.Plugin is { } p ? $"plugin    {p.Name} {p.Version} ({p.Guid})" : "plugin    none (not a BepInEx plugin)",
+                $"about     {mod.Description ?? "no description"}",
             };
             if (mod.Stamp is { } s) lines.Add($"built for game build {s.GameBuildId ?? "?"}, BepInEx {s.BepInExVersion ?? "?"}, GameAssembly {s.GameAssemblyHash?[..12] ?? "?"}");
             else lines.Add("no TSMods build stamp");

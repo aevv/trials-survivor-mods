@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.EliteHealthBars</AssemblyName>
     <Version>0.1.0</Version>
+    <Description>Health bars over every elite, plus arrows at the screen edge pointing to elites you can't see.</Description>
   </PropertyGroup>
 
   <ItemGroup>

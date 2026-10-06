@@ -105,6 +105,12 @@ public sealed partial class MainViewModel : ObservableObject
         });
     }
 
+    internal Task UseStoredReleaseAsync(ModItemViewModel mod, VersionViewModel version)
+    {
+        ShowingReleases = false;
+        return UseVersionAsync(mod, version);
+    }
+
     internal Task UseVersionAsync(ModItemViewModel mod, VersionViewModel version) =>
         RunAsync(() =>
         {
@@ -234,7 +240,7 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             var releases = await new GitHubReleases(_context.Http, ReleaseRepo).ListAsync();
-            var installed = Mods.ToDictionary(m => m.ShortName, StringComparer.OrdinalIgnoreCase);
+            var installed = Mods.DistinctBy(m => m.ShortName, StringComparer.OrdinalIgnoreCase).ToDictionary(m => m.ShortName, StringComparer.OrdinalIgnoreCase);
             foreach (var release in releases)
             {
                 installed.TryGetValue(release.ModName, out var local);
