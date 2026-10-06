@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.XpRates</AssemblyName>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>Multiplies the XP you get from orbs during a run (2x by default).</Description>
   </PropertyGroup>
 

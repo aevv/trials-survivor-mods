@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyName>TrialsSurvivors.RoomSkip</AssemblyName>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>A SKIP button under the room objective that ends the room once its tier 3 goal is met, with full rewards.</Description>
   </PropertyGroup>
 
