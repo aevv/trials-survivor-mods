@@ -6,13 +6,30 @@ namespace TrialsSurvivors.EliteHealthBars;
 
 internal sealed class OffscreenArrow
 {
-    private const int TextureSize = 64;
+    private const int TextureSize = 128;
+    private const float OutlineWidth = 0.075f;
+    private const float ShadowSoftness = 0.09f;
+    private const float ShadowOpacity = 0.6f;
+    private static readonly Vector2 ShadowOffset = new(0.04f, -0.06f);
 
-    private static Sprite? _sprite;
+    private static readonly Vector2[] Shape =
+    {
+        new(0.88f, 0.5f),
+        new(0.14f, 0.85f),
+        new(0.3f, 0.5f),
+        new(0.14f, 0.15f)
+    };
+
+    private static Sprite? _bodySprite;
+    private static Sprite? _shadowSprite;
 
     private readonly GameObject _root;
     private readonly RectTransform _rect;
-    private readonly Image _image;
+    private readonly RectTransform _shadowRect;
+    private readonly RectTransform _bodyRect;
+    private readonly Image _shadow;
+    private readonly Image _body;
+    private float _size = -1f;
 
     public OffscreenArrow(Transform parent)
     {
@@ -20,17 +37,38 @@ internal sealed class OffscreenArrow
         _rect.anchorMin = Vector2.zero;
         _rect.anchorMax = Vector2.zero;
         _rect.pivot = new Vector2(0.5f, 0.5f);
-        _image = Ui.Image(_root);
-        _image.sprite = Sprite;
+
+        GameObject shadow, body;
+        (shadow, _shadowRect) = Ui.Rect("Shadow", _rect);
+        _shadow = Ui.Image(shadow);
+        _shadow.sprite = ShadowSprite;
+
+        (body, _bodyRect) = Ui.Rect("Body", _rect);
+        _body = Ui.Image(body);
+        _body.sprite = BodySprite;
     }
 
     public void Show(Vector2 position, float angleDegrees, float size, Color colour)
     {
         if (!_root.activeSelf) _root.SetActive(true);
         _rect.position = position;
-        _rect.localRotation = Quaternion.Euler(0f, 0f, angleDegrees);
-        _rect.sizeDelta = new Vector2(size, size);
-        if (_image.color != colour) _image.color = colour;
+
+        var rotation = Quaternion.Euler(0f, 0f, angleDegrees);
+        _bodyRect.localRotation = rotation;
+        _shadowRect.localRotation = rotation;
+
+        if (!Mathf.Approximately(_size, size))
+        {
+            _size = size;
+            _rect.sizeDelta = new Vector2(size, size);
+            _shadowRect.anchoredPosition = ShadowOffset * size;
+        }
+
+        if (_body.color != colour)
+        {
+            _body.color = colour;
+            _shadow.color = new Color(1f, 1f, 1f, colour.a);
+        }
     }
 
     public void Hide()
@@ -52,9 +90,40 @@ internal sealed class OffscreenArrow
         return (centre + direction * scale, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
     }
 
-    private static Sprite Sprite => _sprite != null ? _sprite : _sprite = CreateArrowSprite();
+    public static Vector2 LiftAbove(Vector2 position, float size, Rect obstacle, float gap)
+    {
+        var half = size * 0.5f;
+        var overlaps = position.x + half > obstacle.xMin && position.x - half < obstacle.xMax &&
+                       position.y + half > obstacle.yMin && position.y - half < obstacle.yMax + gap;
+        return overlaps ? new Vector2(position.x, obstacle.yMax + gap + half) : position;
+    }
 
-    private static Sprite CreateArrowSprite()
+    private static Sprite BodySprite => _bodySprite != null ? _bodySprite : _bodySprite = CreateSprite(BodyPixel);
+
+    private static Sprite ShadowSprite => _shadowSprite != null ? _shadowSprite : _shadowSprite = CreateSprite(ShadowPixel);
+
+    private static Color32 BodyPixel(Vector2 uv, float distance)
+    {
+        var pixel = 1f / TextureSize;
+        var outer = Mathf.Clamp01(0.5f - distance / pixel);
+        var insideFill = -(distance + OutlineWidth);
+        var fill = Mathf.Clamp01(0.5f + insideFill / pixel);
+
+        var alongArrow = Mathf.InverseLerp(Shape[1].x, Shape[0].x, uv.x);
+        var bevel = Mathf.Lerp(0.7f, 1f, Mathf.Clamp01(insideFill / 0.06f));
+        var brightness = Mathf.Lerp(0.55f, 1f, alongArrow) * bevel * fill;
+
+        var shade = (byte)(brightness * 255f);
+        return new Color32(shade, shade, shade, (byte)(outer * 255f));
+    }
+
+    private static Color32 ShadowPixel(Vector2 uv, float distance)
+    {
+        var alpha = ShadowOpacity * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.02f, ShadowSoftness, distance)));
+        return new Color32(0, 0, 0, (byte)(alpha * 255f));
+    }
+
+    private static Sprite CreateSprite(System.Func<Vector2, float, Color32> shade)
     {
         var texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false)
         {
@@ -67,12 +136,8 @@ internal sealed class OffscreenArrow
         {
             for (var x = 0; x < TextureSize; x++)
             {
-                var u = (x + 0.5f) / TextureSize;
-                var v = (y + 0.5f) / TextureSize - 0.5f;
-                var halfWidthAtU = 0.42f * (1f - u);
-                var edge = halfWidthAtU - Mathf.Abs(v);
-                var alpha = Mathf.Clamp01(edge * TextureSize * 0.75f) * Mathf.Clamp01((u - 0.08f) * TextureSize);
-                pixels[y * TextureSize + x] = new Color32(255, 255, 255, (byte)(alpha * 255f));
+                var uv = new Vector2((x + 0.5f) / TextureSize, (y + 0.5f) / TextureSize);
+                pixels[y * TextureSize + x] = shade(uv, SignedDistance(uv));
             }
         }
 
@@ -83,5 +148,24 @@ internal sealed class OffscreenArrow
         var sprite = Sprite.Create(texture, new Rect(0f, 0f, TextureSize, TextureSize), new Vector2(0.5f, 0.5f));
         sprite.hideFlags = HideFlags.HideAndDontSave;
         return sprite;
+    }
+
+    private static float SignedDistance(Vector2 p)
+    {
+        var nearest = float.MaxValue;
+        var inside = false;
+        for (int i = 0, j = Shape.Length - 1; i < Shape.Length; j = i++)
+        {
+            var a = Shape[j];
+            var b = Shape[i];
+            var edge = b - a;
+            var t = Mathf.Clamp01(Vector2.Dot(p - a, edge) / edge.sqrMagnitude);
+            nearest = Mathf.Min(nearest, (p - (a + edge * t)).sqrMagnitude);
+
+            if ((a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) / (b.y - a.y) * edge.x) inside = !inside;
+        }
+
+        var distance = Mathf.Sqrt(nearest);
+        return inside ? -distance : distance;
     }
 }

@@ -184,6 +184,43 @@ source, and a prefix on `AddXp` can scale `quantity` for just that source. Trial
 `SO_XpMultiplierManager` (`FinalMultiplier`, bonuses keyed by `SO_XpBonusSource`) also exists. It isn't on
 the orb path above.
 
+## The weapon slot cap
+
+`ARPGEntity_Module_Skills.MAX_SKILL_COUNT = 5` is a `const`, so IL2CPP copied the literal into every use. There's
+nothing to set at runtime. The ISIL dump shows where it ended up:
+
+| method | native form | meaning |
+|---|---|---|
+| `Skills.get_SkillBarIsFull` | `cmp eax,5` | `Skills.Count >= 5` |
+| `Skills.TryGetSkillAtSlot` | `cmp ebx,4` / `ja` | slot index bound |
+| `Skills.TryFindFirstAvailableSlot` | `cmp eax,5` | slot loop |
+| `Skills.AddSkill` | `cmp ecx,5`, `cmp ebx,5` | free-slot loops |
+| `Skills.RegisterSkill` | `cmp ebx,5` | free-slot loop |
+| `Skills.ReplaceSkill` | `cmp edi,4` / `jg` | slot index bound |
+| `Cards.AddSkillInternal` | `cmp ebx,5` | `RegisterSkill` inlined here. The method also calls `SkillBarIsFull` |
+| `Cards.BuildNormalDrawCandidates` | `cmp esi,5` | `Skills.Count < 5` gates new weapon cards in the draw |
+| `Cards.TryDrawConstellation` | `cmp eax,5` / `setge` | inlined `SkillBarIsFull`, passed to `GenerateCardDeckPool` |
+| `Skills.OnInitializeModule` | `new int[5]`, unrolled fill with -1 | `_skillSlots` |
+| `Skills.FindNext/PreviousSelectableSlot`, `GetNextSelectableSkillExcluding` | `imul 66666667h` + `lea [rdx+rdx*4]` | `% 5`, compiled to a multiply. Can't be byte-patched |
+
+"Cards" is `ARPGEntity_Module_CardUpgradeWrapper`. Every other `5` near skill code (string.Format arg arrays,
+dictionary capacities, `UI_Module_Kikimeter.Awake` list capacities, `PlayerClassWrapper`) is unrelated. Searching
+for inlined `Skills.Count` (`Dictionary<int, SSV2_SkillInstance>.get_Count` followed by a compare) only finds the
+sites above.
+
+Other relevant pieces:
+
+- `SSV2_SkillInstance._isSelectable` (`+0x108`) is what the cycle methods check.
+- `UI_Module_SpellBar.OnInitialize` fills `_spellSlots` from what looks like `GetComponentsInChildren<UI_Module_SpellSlot>()`
+  (an unnamed generic call on `this`), then calls `TryGetSkillAtSlot` per slot. So an extra child slot gets picked up.
+- `FSM_ARPG_Player_Alive.OnSelectSkillSlot0..4` are five separate input actions. There's no sixth.
+
+Large IL2CPP methods get split into several `.pdata` entries. The ones after the first carry `UNW_FLAG_CHAININFO`
+pointing back to it, and they're contiguous. Sizing a function from its first unwind entry alone misses most of
+`AddSkillInternal` (300 of 4619 bytes).
+
+TrialsSurvivors.WeaponSlots patches the immediates in memory and replaces the three modulo methods with Harmony prefixes.
+
 ## Other caps noted in passing
 
 `MAX_ACTIVE_PROJECTILES`, `MAX_LOCKED_TARGETS`, `MAX_TARGET_SLOTS`,

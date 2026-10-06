@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>TrialsSurvivors.WeaponSlots</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InteropReference Include="UnityEngine.UI;UnityEngine.UIModule;Unity.InputSystem" />
+  </ItemGroup>
+
+</Project>

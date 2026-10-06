@@ -14,6 +14,7 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
     private readonly List<HealthBar> _pool = new();
     private readonly List<OffscreenArrow> _arrows = new();
     private readonly List<BuffIcon> _buffs = new();
+    private readonly SkillBarZone _skillBar = new();
     private TMP_FontAsset? _font;
     private bool _fontResolved;
     private Canvas? _canvas;
@@ -40,6 +41,8 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
             var scale = Screen.height / ReferenceHeight;
             var style = BuildStyle(plugin, scale);
             var arrowColour = Plugin.ParseColour(plugin.ArrowColour.Value, new Color(0.95f, 0.64f, 0.23f, 0.9f));
+            var arrowSize = plugin.ArrowSize.Value * scale;
+            var avoid = AvoidZone(plugin);
 
             foreach (var elite in EliteTracker.All)
             {
@@ -60,7 +63,8 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
                 {
                     if (!plugin.ShowOffscreenArrows.Value) continue;
                     var (edge, angle) = OffscreenArrow.PlaceOnEdge(screen, plugin.ArrowMargin.Value * scale);
-                    RentArrow(arrowsUsed++).Show(edge, angle, plugin.ArrowSize.Value * scale, arrowColour);
+                    if (avoid is { } zone) edge = OffscreenArrow.LiftAbove(edge, arrowSize, zone, plugin.SkillBarGap.Value * scale);
+                    RentArrow(arrowsUsed++).Show(edge, angle, arrowSize, arrowColour);
                     continue;
                 }
 
@@ -98,6 +102,13 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
 
         _canvasesCreated++;
         if (_canvasesCreated > 1) Plugin.Instance.Log.LogWarning($"overlay canvas was destroyed; recreated (#{_canvasesCreated})");
+    }
+
+    private Rect? AvoidZone(Plugin plugin)
+    {
+        if (!plugin.ShowOffscreenArrows.Value || !plugin.AvoidSkillBar.Value || EliteTracker.Count == 0) return null;
+        _skillBar.Refresh();
+        return _skillBar.Current;
     }
 
     private static string? StaleReason(TrackedElite elite, out float fraction)
@@ -190,7 +201,7 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         Plugin.Instance.Log.LogInfo(
             $"heartbeat: tracked={EliteTracker.Count} drawn={drawn} arrows={_lastArrows} activations={EliteTracker.Activations} " +
             $"dropped=[{string.Join(", ", _staleReasons.Select(kv => $"{kv.Key}: {kv.Value}"))}] " +
-            $"canvas={(_canvas != null ? "ok" : "missing")} using='{(_camera != null ? _camera.name : "none")}' " +
+            $"canvas={(_canvas != null ? "ok" : "missing")} skillbar={(_skillBar.Current is { } bar ? $"y<{bar.yMax:0}" : "none")}using='{(_camera != null ? _camera.name : "none")}' " +
             $"all=[{cameras}]");
     }
 

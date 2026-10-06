@@ -32,6 +32,8 @@ public sealed class Plugin : BasePlugin
     internal ConfigEntry<float> ArrowSize = null!;
     internal ConfigEntry<float> ArrowMargin = null!;
     internal ConfigEntry<string> ArrowColour = null!;
+    internal ConfigEntry<bool> AvoidSkillBar = null!;
+    internal ConfigEntry<float> SkillBarGap = null!;
     internal ConfigEntry<bool> LogCamera = null!;
     internal ConfigEntry<bool> Verbose = null!;
 
@@ -88,6 +90,12 @@ public sealed class Plugin : BasePlugin
             new ConfigDescription("Distance from the screen edge at 1080p.", new AcceptableValueRange<float>(0f, 400f)));
 
         ArrowColour = Config.Bind("Arrows", "ArrowColour", "#F2A33AE6", "Arrow colour, as #RRGGBB or #RRGGBBAA.");
+
+        AvoidSkillBar = Config.Bind("Arrows", "AvoidSkillBar", true,
+            "Lift arrows above the skill bar at the bottom of the screen instead of hiding behind it.");
+
+        SkillBarGap = Config.Bind("Arrows", "SkillBarGap", 8f,
+            new ConfigDescription("Space between a lifted arrow and the skill bar, in pixels at 1080p.", new AcceptableValueRange<float>(0f, 100f)));
 
         LogCamera = Config.Bind("Diagnostics", "LogCamera", true,
             "Log which camera the bars are projected through whenever it changes.");

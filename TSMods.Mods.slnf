@@ -6,6 +6,7 @@
       "mods/TrialsSurvivors.RunHistory/TrialsSurvivors.RunHistory.csproj",
       "mods/TrialsSurvivors.RunHud/TrialsSurvivors.RunHud.csproj",
       "mods/TrialsSurvivors.UncapAoE/TrialsSurvivors.UncapAoE.csproj",
+      "mods/TrialsSurvivors.WeaponSlots/TrialsSurvivors.WeaponSlots.csproj",
       "mods/TrialsSurvivors.XpRates/TrialsSurvivors.XpRates.csproj"
     ]
   }

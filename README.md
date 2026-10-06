@@ -256,6 +256,23 @@ XP grant passes through unchanged. The multiplier applies after the game's own X
 orb grant of each run (`first orb xp this run: 3 -> 6 (x2)`) and the run's totals at the end. See
 `docs/findings.md` for the XP flow.
 
+### TrialsSurvivors.WeaponSlots
+
+Raises the weapon slot cap from 5 (default 6). New weapon cards keep being offered until the bar is full, and the
+spell bar gets an extra slot.
+
+Config at `BepInEx\config\net.aevv.trialssurvivors.weaponslots.cfg`: `Enabled`, `SlotCount` (5-8, default `6`),
+`LastSlotKey` (default `Digit6`), since the game only binds keys for five slots, and `Diagnostics.Verbose`. Slot
+count is read at startup.
+
+How it works: the cap is a `const`, so it was compiled into the game's machine code. At load the plugin finds each
+affected method's native code via Il2CppInterop, decodes it with Iced, and rewrites only the `cmp reg,5` /
+`cmp reg,4` instructions it expects. It does this in memory. `GameAssembly.dll` on disk is never touched. If any
+site doesn't match exactly, it patches nothing and the game stays vanilla. The log lists every patched
+instruction. The slot-cycling methods use a compiled `% 5` that can't be byte-patched, so Harmony prefixes replace
+them. The slot array is widened after `OnInitializeModule`, and a copy of the last spell bar slot is added before
+the bar initialises. See `docs/findings.md` for the full list of sites.
+
 ## Status
 
 The mod builds, loads cleanly under BepInEx be.788, and all three Harmony patches
