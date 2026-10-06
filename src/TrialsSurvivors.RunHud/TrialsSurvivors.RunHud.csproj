@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <AssemblyName>TrialsSurvivors.EliteHealthBars</AssemblyName>
+    <AssemblyName>TrialsSurvivors.RunHud</AssemblyName>
     <Version>0.1.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

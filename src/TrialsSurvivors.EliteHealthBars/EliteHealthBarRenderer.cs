@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 
 namespace TrialsSurvivors.EliteHealthBars;
@@ -10,6 +12,10 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
     private const float ReferenceHeight = 1080f;
 
     private readonly List<HealthBar> _pool = new();
+    private readonly List<OffscreenArrow> _arrows = new();
+    private readonly List<BuffIcon> _buffs = new();
+    private TMP_FontAsset? _font;
+    private bool _fontResolved;
     private Canvas? _canvas;
     private Camera? _camera;
     private string? _loggedCameraName;
@@ -23,12 +29,15 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
     private void LateUpdate()
     {
         var used = 0;
+        var arrowsUsed = 0;
         var plugin = Plugin.Instance;
 
         if (plugin.Enabled.Value)
         {
             EnsureCanvas();
-            var style = BuildStyle(plugin, Screen.height / ReferenceHeight);
+            var scale = Screen.height / ReferenceHeight;
+            var style = BuildStyle(plugin, scale);
+            var arrowColour = Plugin.ParseColour(plugin.ArrowColour.Value, new Color(0.95f, 0.64f, 0.23f, 0.9f));
 
             foreach (var elite in EliteTracker.All)
             {
@@ -40,23 +49,33 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
 
                 elite.DelayedFraction = StepDelayed(elite.DelayedFraction, fraction, plugin.DelayedBarSpeed.Value);
 
-                if (plugin.HideAtFullHealth.Value && fraction >= 0.999f) continue;
-
                 var entity = elite.Entity!;
                 if (ResolveCamera(entity.gameObject.layer) is not { } camera) continue;
 
                 var screen = camera.WorldToScreenPoint(entity.GetTopPosition + Vector3.up * plugin.WorldOffset.Value);
-                if (screen.z <= 0f || !OnScreen(screen)) continue;
+                if (screen.z <= 0f || !OnScreen(screen))
+                {
+                    if (!plugin.ShowOffscreenArrows.Value) continue;
+                    var (edge, angle) = OffscreenArrow.PlaceOnEdge(screen, plugin.ArrowMargin.Value * scale);
+                    RentArrow(arrowsUsed++).Show(edge, angle, plugin.ArrowSize.Value * scale, arrowColour);
+                    continue;
+                }
+
+                if (plugin.HideAtFullHealth.Value && fraction >= 0.999f) continue;
+
+                if (plugin.ShowBuffs.Value) BuffReader.Read(entity, _buffs, plugin.MaxBuffIcons.Value);
+                else _buffs.Clear();
 
                 var bar = Rent(used++);
                 bar.Apply(style);
-                bar.Show(new Vector2(screen.x, screen.y), fraction, elite.DelayedFraction);
+                bar.Show(new Vector2(screen.x, screen.y), fraction, elite.DelayedFraction, FormatHp(elite.Health!), _buffs);
             }
 
             EliteTracker.Sweep();
         }
 
         for (var i = used; i < _pool.Count; i++) _pool[i].Hide();
+        for (var i = arrowsUsed; i < _arrows.Count; i++) _arrows[i].Hide();
 
         LogHeartbeat(used);
     }
@@ -66,6 +85,7 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         if (_canvas != null) return;
 
         _pool.Clear();
+        _arrows.Clear();
         var canvasObject = new GameObject("EliteHealthBarsCanvas");
         DontDestroyOnLoad(canvasObject);
         _canvas = canvasObject.AddComponent<Canvas>();
@@ -101,7 +121,24 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
         plugin.Border.Value * scale,
         Plugin.ParseColour(plugin.BackgroundColour.Value, new Color(0f, 0f, 0f, 0.7f)),
         Plugin.ParseColour(plugin.DelayedColour.Value, new Color(0.95f, 0.82f, 0.42f)),
-        Plugin.ParseColour(plugin.FillColour.Value, new Color(0.84f, 0.19f, 0.17f)));
+        Plugin.ParseColour(plugin.FillColour.Value, new Color(0.84f, 0.19f, 0.17f)),
+        plugin.TextSize.Value * scale,
+        plugin.IconSize.Value * scale,
+        plugin.ShowHpText.Value);
+
+    private static string FormatHp(ARPGEntity_Module_Health health)
+    {
+        var vitality = health.Vitality;
+        return $"{Abbreviate(vitality.Value)} / {Abbreviate(vitality.Max)}";
+    }
+
+    private static string Abbreviate(float value) => value switch
+    {
+        >= 1e9f => (value / 1e9f).ToString("0.#", CultureInfo.InvariantCulture) + "B",
+        >= 1e6f => (value / 1e6f).ToString("0.#", CultureInfo.InvariantCulture) + "M",
+        >= 1e4f => (value / 1e3f).ToString("0.#", CultureInfo.InvariantCulture) + "k",
+        _ => Mathf.CeilToInt(value).ToString(CultureInfo.InvariantCulture)
+    };
 
     private static float StepDelayed(float delayed, float fraction, float speed)
     {
@@ -151,7 +188,19 @@ public sealed class EliteHealthBarRenderer : MonoBehaviour
 
     private HealthBar Rent(int index)
     {
-        while (_pool.Count <= index) _pool.Add(new HealthBar(_canvas!.transform));
+        if (!_fontResolved)
+        {
+            _font = Ui.FindGameFont();
+            _fontResolved = _font != null;
+        }
+
+        while (_pool.Count <= index) _pool.Add(new HealthBar(_canvas!.transform, _font));
         return _pool[index];
+    }
+
+    private OffscreenArrow RentArrow(int index)
+    {
+        while (_arrows.Count <= index) _arrows.Add(new OffscreenArrow(_canvas!.transform));
+        return _arrows[index];
     }
 }

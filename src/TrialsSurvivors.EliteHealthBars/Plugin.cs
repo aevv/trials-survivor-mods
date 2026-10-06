@@ -23,6 +23,15 @@ public sealed class Plugin : BasePlugin
     internal ConfigEntry<string> FillColour = null!;
     internal ConfigEntry<string> DelayedColour = null!;
     internal ConfigEntry<string> BackgroundColour = null!;
+    internal ConfigEntry<bool> ShowHpText = null!;
+    internal ConfigEntry<float> TextSize = null!;
+    internal ConfigEntry<bool> ShowBuffs = null!;
+    internal ConfigEntry<int> MaxBuffIcons = null!;
+    internal ConfigEntry<float> IconSize = null!;
+    internal ConfigEntry<bool> ShowOffscreenArrows = null!;
+    internal ConfigEntry<float> ArrowSize = null!;
+    internal ConfigEntry<float> ArrowMargin = null!;
+    internal ConfigEntry<string> ArrowColour = null!;
     internal ConfigEntry<bool> LogCamera = null!;
     internal ConfigEntry<bool> Verbose = null!;
 
@@ -54,6 +63,31 @@ public sealed class Plugin : BasePlugin
         FillColour = Config.Bind("Style", "FillColour", "#D6312B", "Health fill colour, as #RRGGBB or #RRGGBBAA.");
         DelayedColour = Config.Bind("Style", "DelayedColour", "#F2D16B", "Damage-taken trail colour, as #RRGGBB or #RRGGBBAA.");
         BackgroundColour = Config.Bind("Style", "BackgroundColour", "#000000B4", "Background colour, as #RRGGBB or #RRGGBBAA.");
+
+        ShowHpText = Config.Bind("Labels", "ShowHpText", true, "Show current / max HP above the bar.");
+
+        TextSize = Config.Bind("Labels", "TextSize", 14f,
+            new ConfigDescription("HP text size at 1080p.", new AcceptableValueRange<float>(6f, 60f)));
+
+        ShowBuffs = Config.Bind("Labels", "ShowBuffs", true,
+            "Show the elite's active buff/debuff icons above the bar. Debuffs get a red border.");
+
+        MaxBuffIcons = Config.Bind("Labels", "MaxBuffIcons", 6,
+            new ConfigDescription("Most buff/debuff icons to show per elite.", new AcceptableValueRange<int>(1, 20)));
+
+        IconSize = Config.Bind("Labels", "IconSize", 18f,
+            new ConfigDescription("Buff/debuff icon size at 1080p.", new AcceptableValueRange<float>(6f, 80f)));
+
+        ShowOffscreenArrows = Config.Bind("Arrows", "ShowOffscreenArrows", true,
+            "Point an arrow at the screen edge towards each elite that's off screen.");
+
+        ArrowSize = Config.Bind("Arrows", "ArrowSize", 28f,
+            new ConfigDescription("Arrow size at 1080p.", new AcceptableValueRange<float>(8f, 128f)));
+
+        ArrowMargin = Config.Bind("Arrows", "ArrowMargin", 40f,
+            new ConfigDescription("Distance from the screen edge at 1080p.", new AcceptableValueRange<float>(0f, 400f)));
+
+        ArrowColour = Config.Bind("Arrows", "ArrowColour", "#F2A33AE6", "Arrow colour, as #RRGGBB or #RRGGBBAA.");
 
         LogCamera = Config.Bind("Diagnostics", "LogCamera", true,
             "Log which camera the bars are projected through whenever it changes.");
