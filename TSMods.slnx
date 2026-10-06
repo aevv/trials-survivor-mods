@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/loader/">
+    <Project Path="loader/TSMods.Cli/TSMods.Cli.csproj" />
+    <Project Path="loader/TSMods.Core.Tests/TSMods.Core.Tests.csproj" />
+    <Project Path="loader/TSMods.Core/TSMods.Core.csproj" />
+  </Folder>
   <Folder Name="/mods/">
     <Project Path="mods/TrialsSurvivors.EliteHealthBars/TrialsSurvivors.EliteHealthBars.csproj" />
     <Project Path="mods/TrialsSurvivors.RunHistory/TrialsSurvivors.RunHistory.csproj" />

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>tsmods</AssemblyName>
+    <RootNamespace>TSMods.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TSMods.Core\TSMods.Core.csproj" />
+  </ItemGroup>
+
+</Project>
